@@ -1,142 +1,193 @@
-# UserCenter - 用户中心服务
+# UserCenter - User Management Service
 
 [![Go Version](https://img.shields.io/badge/Go-1.23.1-blue.svg)](https://golang.org)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Test Coverage](https://img.shields.io/badge/Coverage-80%25-brightgreen.svg)](./coverage.html)
+[![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen.svg)]()
 
-## 项目简介
+**English** | [中文](README.zh-CN.md)
 
-UserCenter 是一个基于 Go 语言构建的生产就绪的用户中心服务，提供完整的用户管理功能，包括注册、登录、查询和列表等核心功能。该项目遵循标准 Go 项目布局，采用现代化的技术栈，支持高并发、高可用性和可扩展性。
+## 📖 Table of Contents
 
-### 核心功能
+- [Overview](#overview)
+- [Features](#features)
+- [Technology Stack](#technology-stack)
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [API Documentation](#api-documentation)
+- [Development](#development)
+- [Testing](#testing)
+- [Deployment](#deployment)
+- [Contributing](#contributing)
+- [License](#license)
 
-- 🔐 **用户认证**：基于 JWT 的用户注册和登录
-- 🔍 **用户查询**：支持条件过滤的用户信息查询
-- 📋 **用户列表**：支持分页和排序的用户列表
-- 🏥 **健康检查**：服务状态监控端点
-- 🛡️ **安全特性**：输入校验、速率限制、CORS 支持
-- 🌍 **国际化**：多语言支持（中文/英文）
-- 🔄 **优雅停机**：安全的服务关闭机制
-- 📊 **可观测性**：完整的监控、日志和链路追踪
+---
 
-## 技术栈
+## 🎯 Overview
 
-### 核心框架
-- **Web 框架**：[Gin](https://github.com/gin-gonic/gin) - 高性能 HTTP Web 框架
-- **依赖注入**：[Wire](https://github.com/google/wire) - 编译时依赖注入
-- **API 文档**：[Swagger](https://github.com/swaggo/gin-swagger) - 自动生成 OpenAPI 3.0 文档
+UserCenter is a production-ready user management service built with Go, providing comprehensive user management capabilities including registration, authentication, querying, and listing. The project follows standard Go project layout and adopts modern technology stack to support high concurrency, high availability, and scalability.
 
-### 数据存储
-- **主数据库**：[PostgreSQL](https://www.postgresql.org/) + [GORM](https://gorm.io/) - 用户核心数据
-- **辅助数据库**：[MongoDB](https://www.mongodb.com/) - 日志和会话数据
-- **缓存**：[Redis](https://redis.io/) - 高性能缓存
-- **数据库迁移**：[Goose](https://github.com/pressly/goose) - 数据库版本控制
+### Core Features
 
-### 消息和任务
-- **消息队列**：[Kafka](https://kafka.apache.org/) - 事件消费
-- **异步任务**：[Asynq](https://github.com/hibiken/asynq) - 后台任务处理
+- 🔐 **User Authentication**: JWT-based user registration and login
+- 🔍 **User Query**: Conditional filtering for user information queries
+- 📋 **User Listing**: Paginated and sortable user lists
+- 🏥 **Health Checks**: Service status monitoring endpoints
+- 🛡️ **Security Features**: Input validation, rate limiting, CORS support
+- 🌍 **Internationalization**: Multi-language support (Chinese/English)
+- 🔄 **Graceful Shutdown**: Safe service termination mechanism
+- 📊 **Observability**: Complete monitoring, logging, and distributed tracing
 
-### 监控和日志
-- **日志**：[Zap](https://github.com/uber-go/zap) - 高性能结构化日志
-- **监控**：[Prometheus](https://prometheus.io/) - 指标收集
-- **链路追踪**：[OpenTelemetry](https://opentelemetry.io/) - 分布式追踪
+## 🚀 Features
 
-### 其他
-- **认证**：[JWT](https://github.com/golang-jwt/jwt) - 无状态认证
-- **国际化**：[go-i18n](https://github.com/nicksnyder/go-i18n) - 多语言支持
-- **配置**：YAML 配置文件
-- **代码质量**：[golangci-lint](https://golangci-lint.run/) - 代码规范检查
+### Authentication & Authorization
+- JWT-based stateless authentication
+- Password hashing with bcrypt (cost 12)
+- Role-based access control
+- Token refresh mechanism
+- Secure session management
 
-## 依赖和前提条件
+### User Management
+- User registration with email verification
+- User profile management
+- Account status management (active, inactive, suspended)
+- Soft delete support
+- Bulk user operations
 
-### 系统要求
-- Go 1.23.1 或更高版本
-- PostgreSQL 13+ 
+### API Features
+- RESTful API design
+- Comprehensive input validation
+- Rate limiting (general, login-specific, registration-specific)
+- Request ID tracking
+- CORS configuration
+- Swagger/OpenAPI documentation
+
+### Monitoring & Observability
+- Health check endpoints for all dependencies
+- Prometheus metrics collection
+- Structured logging with Zap
+- Distributed tracing with OpenTelemetry
+- Performance monitoring
+
+## 🛠️ Technology Stack
+
+### Core Framework
+- **Web Framework**: [Gin](https://github.com/gin-gonic/gin) - High-performance HTTP web framework
+- **Dependency Injection**: [Wire](https://github.com/google/wire) - Compile-time dependency injection
+- **API Documentation**: [Swagger](https://github.com/swaggo/gin-swagger) - Auto-generated OpenAPI 3.0 documentation
+
+### Data Storage
+- **Primary Database**: [PostgreSQL](https://www.postgresql.org/) + [GORM](https://gorm.io/) - User core data
+- **Auxiliary Database**: [MongoDB](https://www.mongodb.com/) - Logs and session data
+- **Cache**: [Redis](https://redis.io/) - High-performance caching
+- **Database Migration**: [Goose](https://github.com/pressly/goose) - Database version control
+
+### Message & Task Processing
+- **Message Queue**: [Kafka](https://kafka.apache.org/) - Event consumption
+- **Async Tasks**: [Asynq](https://github.com/hibiken/asynq) - Background task processing
+
+### Monitoring & Logging
+- **Logging**: [Zap](https://github.com/uber-go/zap) - High-performance structured logging
+- **Monitoring**: [Prometheus](https://prometheus.io/) - Metrics collection
+- **Distributed Tracing**: [OpenTelemetry](https://opentelemetry.io/) - Distributed tracing
+
+### Security & Utilities
+- **Authentication**: [JWT](https://github.com/golang-jwt/jwt) - Stateless authentication
+- **Internationalization**: [go-i18n](https://github.com/nicksnyder/go-i18n) - Multi-language support
+- **Configuration**: YAML configuration files
+- **Code Quality**: [golangci-lint](https://golangci-lint.run/) - Code quality checks
+
+## 📋 Prerequisites
+
+### System Requirements
+- Go 1.23.1 or higher
+- PostgreSQL 13+
 - MongoDB 5.0+
 - Redis 6.0+
 - Apache Kafka 2.8+
 
-### 开发工具
+### Development Tools
 ```bash
-# 安装 Go
-# 参考：https://golang.org/doc/install
+# Install Go
+# Reference: https://golang.org/doc/install
 
-# 安装 Wire
+# Install Wire
 go install github.com/google/wire/cmd/wire@latest
 
-# 安装 Goose
+# Install Goose
 go install github.com/pressly/goose/v3/cmd/goose@latest
 
-# 安装 golangci-lint
+# Install golangci-lint
 curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.54.2
 
-# 安装 Swagger 生成工具
+# Install Swagger generator
 go install github.com/swaggo/swag/cmd/swag@latest
 ```
 
-## 安装和运行
+## 🚀 Installation
 
-### 1. 克隆项目
+### 1. Clone the Repository
 ```bash
 git clone <repository-url>
 cd user-center
 ```
 
-### 2. 安装依赖
+### 2. Install Dependencies
 ```bash
 go mod download
 ```
 
-### 3. 配置环境
+### 3. Configure Environment
 ```bash
-# 复制配置文件
+# Copy configuration file
 cp configs/config.example.yaml configs/config.yaml
 
-# 编辑配置文件
+# Edit configuration
 vim configs/config.yaml
 ```
 
-### 4. 初始化数据库
+### 4. Initialize Database
 ```bash
-# 运行数据库迁移
+# Run database migrations
 make migrate-up
 
-# 或者手动运行
+# Or manually
 goose -dir migrations postgres "user=username password=password dbname=usercenter sslmode=disable" up
 ```
 
-### 5. 生成 Wire 依赖注入代码
+### 5. Generate Wire Dependency Injection Code
 ```bash
 make wire
 ```
 
-### 6. 生成 Swagger 文档
+### 6. Generate Swagger Documentation
 ```bash
 make swagger
 ```
 
-### 7. 运行服务
+### 7. Run the Service
 ```bash
-# 开发环境
+# Development environment
 make run
 
-# 或者直接运行
+# Or run directly
 go run cmd/usercenter/main.go
 
-# 生产环境
+# Production environment
 make build
 ./bin/usercenter
 ```
 
-## 配置说明
+## ⚙️ Configuration
 
-项目支持多种配置方式，优先级从高到低：
+The project supports multiple configuration methods with priority from high to low:
 
-1. **环境变量**：`USERCENTER_` 前缀
-2. **配置文件**：`configs/config.yaml`
-3. **默认值**：代码中的默认配置
+1. **Environment Variables**: `USERCENTER_` prefix
+2. **Configuration File**: `configs/config.yaml`
+3. **Default Values**: Default configuration in code
 
-### 主要配置项
+### Main Configuration Items
 
 ```yaml
 server:
@@ -185,279 +236,227 @@ monitoring:
     endpoint: "http://localhost:14268/api/traces"
 ```
 
-## API 文档和使用示例
+## 📚 API Documentation
 
-### Swagger 文档访问
+### Swagger Documentation Access
 
-启动服务后，可通过以下地址访问 API 文档：
+After starting the service, you can access the API documentation at:
 
-- **Swagger UI**：http://localhost:8080/swagger/index.html
-- **OpenAPI JSON**：http://localhost:8080/swagger/doc.json
+- **Swagger UI**: http://localhost:8080/swagger/index.html
+- **OpenAPI JSON**: http://localhost:8080/swagger/doc.json
 
-### API 端点
+### API Endpoints
 
-#### 1. 健康检查
+#### 1. Health Check
 ```bash
-curl -X GET http://localhost:8080/health
+# Basic health check
+GET /health
+
+# Detailed health check
+GET /health/detailed
+
+# Metrics endpoint
+GET /metrics
 ```
 
-#### 2. 用户注册
+#### 2. User Management
 ```bash
-curl -X POST http://localhost:8080/api/v1/users/register \
-  -H "Content-Type: application/json" \
-  -H "Accept-Language: zh-CN" \
-  -d '{
-    "username": "testuser",
-    "email": "test@example.com",
-    "password": "securepassword123"
-  }'
-```
-
-#### 3. 用户登录
-```bash
-curl -X POST http://localhost:8080/api/v1/users/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "test@example.com",
-    "password": "securepassword123"
-  }'
-```
-
-#### 4. 查询用户（需要认证）
-```bash
-curl -X GET "http://localhost:8080/api/v1/users/1" \
-  -H "Authorization: Bearer <jwt-token>"
-```
-
-#### 5. 用户列表（支持分页和排序）
-```bash
-curl -X GET "http://localhost:8080/api/v1/users?page=1&size=10&sort=created_at&order=desc" \
-  -H "Authorization: Bearer <jwt-token>"
-```
-
-## 国际化支持
-
-### 支持的语言
-- **中文**：`zh-CN`
-- **英文**：`en-US`
-
-### 使用方式
-
-通过 HTTP 头部 `Accept-Language` 指定语言：
-
-```bash
-# 中文响应
-curl -H "Accept-Language: zh-CN" http://localhost:8080/api/v1/users
-
-# 英文响应
-curl -H "Accept-Language: en-US" http://localhost:8080/api/v1/users
-```
-
-### 添加新语言
-
-1. 在 `locales/` 目录下添加新的语言文件
-2. 更新 `internal/i18n/i18n.go` 中的语言配置
-3. 重新编译项目
-
-## Request ID 追踪
-
-### 自动生成
-每个 HTTP 请求都会自动生成唯一的 Request ID，用于：
-- 日志记录
-- 链路追踪
-- 错误调试
-
-### 手动指定
-可通过 HTTP 头部 `X-Request-ID` 手动指定：
-
-```bash
-curl -H "X-Request-ID: custom-request-123" http://localhost:8080/api/v1/users
-```
-
-### 日志中的 Request ID
-所有日志都包含 Request ID 字段：
-
-```json
+# User registration
+POST /api/v1/users/register
 {
-  "level": "info",
-  "time": "2023-12-01T10:00:00Z",
-  "request_id": "req-123456789",
-  "message": "User login successful",
-  "user_id": 1
+  "username": "john_doe",
+  "email": "john@example.com",
+  "password": "secure_password"
 }
+
+# User login
+POST /api/v1/users/login
+{
+  "email": "john@example.com",
+  "password": "secure_password"
+}
+
+# Get user profile
+GET /api/v1/users/profile
+Authorization: Bearer <jwt_token>
+
+# Update user profile
+PUT /api/v1/users/profile
+Authorization: Bearer <jwt_token>
+{
+  "username": "john_doe_updated",
+  "email": "john.updated@example.com"
+}
+
+# Get user list (with pagination and filtering)
+GET /api/v1/users?page=1&limit=20&status=active&search=john
+Authorization: Bearer <jwt_token>
+
+# Get specific user
+GET /api/v1/users/{id}
+Authorization: Bearer <jwt_token>
+
+# Delete user
+DELETE /api/v1/users/{id}
+Authorization: Bearer <jwt_token>
 ```
 
-## 优雅停机
+## 🛠️ Development
 
-服务支持优雅停机，确保在收到终止信号时：
-
-1. 停止接受新请求
-2. 等待当前请求完成（最多 30 秒）
-3. 关闭数据库连接
-4. 清理资源
-
-### 支持的信号
-- `SIGINT` (Ctrl+C)
-- `SIGTERM` (Docker stop)
-
-### 配置停机超时
-```yaml
-server:
-  shutdown_timeout: "30s"
+### Project Structure
+```
+user-center/
+├── cmd/usercenter/          # Application entry point
+│   ├── main.go             # Main application
+│   └── wire.go             # Wire dependency injection
+├── internal/               # Private application code
+│   ├── config/             # Configuration management
+│   ├── model/              # Domain entities (GORM models)
+│   ├── dto/                # Data transfer objects
+│   ├── service/            # Business logic layer
+│   ├── repository/         # Data access layer
+│   ├── handler/            # HTTP handlers (controllers)
+│   ├── middleware/         # HTTP middleware
+│   ├── server/             # Server setup and routing
+│   └── database/           # Database connections
+├── pkg/                    # Shared packages
+│   ├── logger/             # Logging utilities
+│   └── jwt/                # JWT utilities
+├── configs/                # Configuration files
+├── migrations/             # Database migrations
+├── docs/                   # Generated documentation
+├── Makefile                # Build and development tasks
+├── Dockerfile              # Container configuration
+└── README.md               # This file
 ```
 
-## 开发指南
-
-### 代码生成
+### Available Make Commands
 ```bash
-# 生成 Wire 依赖注入代码
-make wire
+# Development
+make run                    # Run in development mode
+make build                  # Build binary
+make clean                  # Clean build artifacts
+make wire                   # Generate Wire dependency injection
+make swagger                # Generate Swagger documentation
 
-# 生成 Swagger 文档
-make swagger
+# Testing
+make test                   # Run all tests
+make test-coverage          # Run tests with coverage
+make test-short             # Run only short tests
+make test-race              # Run tests with race detection
 
-# 生成 Mock 文件
-make mock
+# Database
+make migrate-up             # Run database migrations
+make migrate-down           # Rollback database migrations
+make migrate-status         # Check migration status
+
+# Code Quality
+make lint                   # Run golangci-lint
+make fmt                    # Format code
+make vet                    # Run go vet
+
+# Docker
+make docker-build           # Build Docker image
+make docker-run             # Run Docker container
+make docker-clean           # Clean Docker artifacts
+
+# Utilities
+make help                   # Show all available commands
 ```
 
-### 测试
+## 🧪 Testing
+
+### Running Tests
 ```bash
-# 运行所有测试
+# Run all tests
 make test
 
-# 运行测试并生成覆盖率报告
+# Run tests with coverage
 make test-coverage
 
-# 运行基准测试
-make benchmark
+# Run only unit tests (skip integration)
+make test-short
+
+# Run tests with race detection
+make test-race
+
+# Run specific test
+go test -run TestUserService_CreateUser ./...
 ```
 
-### 代码质量检查
+### Test Coverage
+The project aims for 80%+ test coverage. Coverage reports are generated in:
+- `coverage.out` - Raw coverage data
+- `coverage.html` - HTML coverage report
+
+### Test Structure
+- **Unit Tests**: Test individual functions and methods
+- **Integration Tests**: Test database operations and API endpoints
+- **Mock Tests**: Use gomock for dependency mocking
+
+## 🚀 Deployment
+
+### Docker Deployment
 ```bash
-# 运行 linter
-make lint
-
-# 格式化代码
-make fmt
-
-# 检查代码安全性
-make security
-```
-
-### 数据库操作
-```bash
-# 创建新的迁移文件
-make migrate-create name=add_user_table
-
-# 应用迁移
-make migrate-up
-
-# 回滚迁移
-make migrate-down
-
-# 查看迁移状态
-make migrate-status
-```
-
-## 部署指南
-
-### Docker 部署
-```bash
-# 构建镜像
+# Build Docker image
 make docker-build
 
-# 运行容器
-docker run -p 8080:8080 user-center:latest
-```
+# Run Docker container
+make docker-run
 
-### Docker Compose 部署
-```bash
-# 启动所有服务
+# Or use docker-compose
 docker-compose up -d
-
-# 查看日志
-docker-compose logs -f usercenter
 ```
 
-### Kubernetes 部署
+### Production Deployment
 ```bash
-# 应用配置
-kubectl apply -f deployments/k8s/
+# Build for production
+make build
 
-# 查看服务状态
+# Set environment variables
+export USERCENTER_ENV=production
+export USERCENTER_DB_HOST=your-db-host
+export USERCENTER_DB_PASSWORD=your-db-password
+
+# Run the service
+./bin/usercenter
+```
+
+### Kubernetes Deployment
+```bash
+# Apply Kubernetes manifests
+kubectl apply -f k8s/
+
+# Check deployment status
 kubectl get pods -l app=usercenter
 ```
 
-## 监控和可观测性
+## 🤝 Contributing
 
-### Prometheus 指标
-- HTTP 请求指标：`http_requests_total`
-- 响应时间：`http_request_duration_seconds`
-- 数据库连接：`database_connections`
-- 自定义业务指标
+We welcome contributions! Please follow these steps:
 
-访问地址：http://localhost:9090/metrics
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/new-feature`
+3. Commit changes: `git commit -am 'Add new feature'`
+4. Push branch: `git push origin feature/new-feature`
+5. Create Pull Request
 
-### 链路追踪
-使用 OpenTelemetry 进行分布式追踪，支持：
-- Jaeger
-- Zipkin
-- 其他兼容后端
+### Development Guidelines
+- Follow Go coding standards
+- Write comprehensive tests
+- Update documentation
+- Use conventional commit messages
+- Ensure all tests pass before submitting
 
-### 日志聚合
-推荐使用 ELK Stack：
-- Elasticsearch：日志存储
-- Logstash：日志处理
-- Kibana：日志可视化
+## 📄 License
 
-## 故障排除
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-### 常见问题
+---
 
-1. **服务启动失败**
-   - 检查配置文件格式
-   - 确认数据库连接
-   - 查看端口占用情况
+## 🔗 Related Links
 
-2. **数据库连接失败**
-   - 检查数据库服务状态
-   - 验证连接参数
-   - 确认网络连通性
-
-3. **JWT 认证失败**
-   - 检查 JWT 密钥配置
-   - 确认 Token 格式
-   - 验证 Token 过期时间
-
-### 日志调试
-```bash
-# 查看实时日志
-tail -f logs/usercenter.log
-
-# 根据 Request ID 查询日志
-grep "req-123456789" logs/usercenter.log
-```
-
-## 贡献指南
-
-1. Fork 项目
-2. 创建功能分支：`git checkout -b feature/new-feature`
-3. 提交更改：`git commit -am 'Add new feature'`
-4. 推送分支：`git push origin feature/new-feature`
-5. 创建 Pull Request
-
-### 代码规范
-- 遵循 Go 官方代码规范
-- 通过 golangci-lint 检查
-- 保持测试覆盖率 80% 以上
-- 添加必要的注释和文档
-
-## 许可证
-
-本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
-
-## 联系方式
-
-- 项目维护者：[Your Name](mailto:your.email@example.com)
-- 问题反馈：[GitHub Issues](https://github.com/your-org/user-center/issues)
-- 文档：[项目文档](https://docs.your-domain.com/user-center) 
+- [中文文档](README.zh-CN.md)
+- [Project Homepage](https://github.com/your-org/user-center)
+- [Issues](https://github.com/your-org/user-center/issues)
+- [Discussions](https://github.com/your-org/user-center/discussions) 
