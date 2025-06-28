@@ -1,0 +1,84 @@
+# UserCenter Configuration File
+
+server:
+  host: "0.0.0.0"
+  port: 8080
+  mode: "debug"  # debug, release, test
+  shutdown_timeout: "30s"
+
+database:
+  postgres:
+    host: "localhost"
+    port: 5432
+    user: "postgres"
+    password: "password"
+    dbname: "usercenter"
+    sslmode: "disable"
+    max_open_conns: 25
+    max_idle_conns: 10
+    max_lifetime: "5m"
+  
+  mongodb:
+    uri: "mongodb://localhost:27017"
+    database: "usercenter_logs"
+
+redis:
+  addr: "localhost:6379"
+  password: ""
+  db: 0
+  pool_size: 10
+  min_idle_conns: 5
+
+kafka:
+  brokers: ["localhost:9092"]
+  topics:
+    user_events: "user.events"
+  group_id: "usercenter"
+
+jwt:
+  secret: "your-super-secret-key-change-this-in-production"
+  expiry: "24h"
+  issuer: "usercenter"
+
+logging:
+  level: "info"  # debug, info, warn, error
+  format: "json"  # json, console
+  output_path: "logs/usercenter.log"
+
+monitoring:
+  prometheus:
+    enabled: true
+    port: 9090
+    path: "/metrics"
+  
+  tracing:
+    enabled: true
+    endpoint: "http://localhost:14268/api/traces"
+    service: "usercenter"
+
+i18n:
+  default_language: "zh-CN"
+  languages: ["zh-CN", "en-US"]
+
+rate_limit:
+  enabled: true
+  rate: 100  # requests per minute
+  burst: 200
+  store: "redis"
+
+cors:
+  allow_origins: ["*"]
+  allow_methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+  allow_headers: ["*"]
+  expose_headers: ["X-Request-ID"]
+  allow_credentials: true
+  max_age: 86400
+
+task:
+  redis:
+    addr: "localhost:6379"
+    password: ""
+    db: 1
+  queues: ["default", "email", "notification"]
+  workers: 10
+  log_level: "info" 

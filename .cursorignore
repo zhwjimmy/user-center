@@ -1,0 +1,144 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+usercenter
+cmd/usercenter/usercenter
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Dependency directories
+vendor/
+node_modules/
+
+# Go workspace file
+go.work
+go.work.sum
+
+# Build directories
+build/
+dist/
+bin/
+target/
+
+# Log files
+*.log
+logs/
+log/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Cache directories
+.cache/
+tmp/
+temp/
+.tmp/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Environment and config files with sensitive data
+.env
+.env.local
+.env.*.local
+config.local.yaml
+config.prod.yaml
+*.pem
+*.key
+*.cert
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# Kubernetes
+*.kubeconfig
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# Coverage reports
+coverage.out
+coverage.html
+coverage.xml
+*.cover
+
+# Profiling data
+*.prof
+*.pprof
+
+# Air live reload
+tmp/
+
+# Wire generated files (if auto-generated)
+wire_gen.go
+
+# Swagger generated files
+docs/swagger.json
+docs/swagger.yaml
+
+# Migration logs
+*.sql.log
+
+# Backup files
+*.bak
+*.backup
+
+# Archive files
+*.tar
+*.tar.gz
+*.zip
+*.rar
+
+# Large data files
+*.dump
+*.csv
+*.json.gz
+
+# Monitoring and metrics data
+metrics/
+prometheus_data/
+
+# Redis dump files
+dump.rdb
+
+# MongoDB data files
+data/db/
+
+# PostgreSQL data files
+pgdata/
+
+# Git files (if needed for some reason)
+.git/
+.gitignore
+
+# Documentation build files
+site/
+_site/
+
+# Temporary Go files
+*.tmp.go
