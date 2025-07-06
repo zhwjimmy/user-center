@@ -57,10 +57,14 @@ jobs:
         go install github.com/golang/mock/mockgen@latest
         go install github.com/axw/gocov/gocov@latest
         go install github.com/AlekSi/gocov-xml@latest
+        go install github.com/google/wire/cmd/wire@latest
         echo "Tools installed successfully"
 
     - name: Generate mocks
       run: make mock
+
+    - name: Generate Wire code
+      run: make wire
 
     - name: Install dependencies
       run: |
