@@ -4,8 +4,6 @@
 *.dll
 *.so
 *.dylib
-usercenter
-cmd/usercenter/usercenter
 
 # Test binary, built with `go test -c`
 *.test

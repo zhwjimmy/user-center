@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -29,11 +30,11 @@ func New(
 	userHandler *handler.UserHandler,
 	healthHandler *handler.HealthHandler,
 	authMiddleware *middleware.AuthMiddleware,
-	corsMiddleware gin.HandlerFunc,
+	corsMiddleware middleware.CORSMiddleware,
 	rateLimitMiddleware *middleware.RateLimitMiddleware,
-	requestIDMiddleware gin.HandlerFunc,
-	loggerMiddleware gin.HandlerFunc,
-	recoveryMiddleware gin.HandlerFunc,
+	requestIDMiddleware middleware.RequestIDMiddleware,
+	loggerMiddleware middleware.LoggerMiddleware,
+	recoveryMiddleware middleware.RecoveryMiddleware,
 ) *Server {
 	// Set Gin mode
 	gin.SetMode(cfg.Server.Mode)
@@ -42,10 +43,10 @@ func New(
 	r := gin.New()
 
 	// Global middleware
-	r.Use(recoveryMiddleware)
-	r.Use(requestIDMiddleware)
-	r.Use(loggerMiddleware)
-	r.Use(corsMiddleware)
+	r.Use(gin.HandlerFunc(recoveryMiddleware))
+	r.Use(gin.HandlerFunc(requestIDMiddleware))
+	r.Use(gin.HandlerFunc(loggerMiddleware))
+	r.Use(gin.HandlerFunc(corsMiddleware))
 
 	// Health check routes (no rate limiting or auth)
 	r.GET("/health", healthHandler.Health)
@@ -143,4 +144,14 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	}
 
 	return srv.Shutdown(ctx)
+}
+
+// GetLogger returns the logger instance
+func (s *Server) GetLogger() *zap.Logger {
+	return s.logger
+}
+
+// GetShutdownTimeout returns the shutdown timeout from config
+func (s *Server) GetShutdownTimeout() time.Duration {
+	return s.config.Server.ShutdownTimeout
 }
