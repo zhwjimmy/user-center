@@ -92,6 +92,8 @@ jobs:
 
     - name: Run tests with coverage
       run: |
+        # Create coverage directory
+        mkdir -p coverage
         # Run tests with coverage in parallel
         go test -v -coverprofile=coverage/coverage.out -covermode=atomic -p=4 ./...
         # Generate XML coverage report
