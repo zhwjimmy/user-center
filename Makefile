@@ -257,7 +257,7 @@ install-tools: ## Install development tools
 	go install github.com/golang/mock/mockgen@latest
 	go install github.com/axw/gocov/gocov@latest
 	go install github.com/AlekSi/gocov-xml@latest
-	go install github.com/cosmtrek/air@latest
+	go install github.com/air-verse/air@latest
 
 ##@ Information
 
