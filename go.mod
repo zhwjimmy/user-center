@@ -7,10 +7,8 @@ require (
 	github.com/gin-contrib/requestid v0.0.6
 	github.com/gin-contrib/zap v0.2.0
 	github.com/gin-gonic/gin v1.9.1
-	github.com/golang-jwt/jwt/v5 v5.2.0
 	github.com/golang/mock v1.6.0
-	github.com/google/uuid v1.5.0
-	github.com/google/wire v0.6.0
+	github.com/google/uuid v1.6.0
 	github.com/prometheus/client_golang v1.17.0
 	github.com/redis/go-redis/v9 v9.3.1
 	github.com/spf13/viper v1.18.2
@@ -105,7 +103,6 @@ require (
 	github.com/spf13/afero v1.11.0 // indirect
 	github.com/spf13/cast v1.6.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/stretchr/objx v0.5.0 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/swaggo/swag v1.16.2 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
