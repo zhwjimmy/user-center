@@ -2,8 +2,9 @@
 
 [![Go Version](https://img.shields.io/badge/Go-1.23.1-blue.svg)](https://golang.org)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Test Coverage](https://img.shields.io/badge/Coverage-80%25-brightgreen.svg)](./coverage.html)
-[![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen.svg)]()
+[![CI](https://github.com/zhwjimmy/user-center/workflows/CI/badge.svg)](https://github.com/zhwjimmy/user-center/actions/workflows/ci.yml)
+[![Release](https://github.com/zhwjimmy/user-center/workflows/Release/badge.svg)](https://github.com/zhwjimmy/user-center/actions/workflows/release.yml)
+[![Security Scan](https://github.com/zhwjimmy/user-center/workflows/Security%20Scan/badge.svg)](https://github.com/zhwjimmy/user-center/actions/workflows/security.yml)
 
 **English** | [中文](README.zh-CN.md)
 
@@ -18,6 +19,7 @@
 - [API Documentation](#api-documentation)
 - [Development](#development)
 - [Testing](#testing)
+- [CI/CD](#cicd)
 - [Deployment](#deployment)
 - [Contributing](#contributing)
 - [License](#license)
@@ -393,6 +395,66 @@ The project aims for 80%+ test coverage. Coverage reports are generated in:
 - **Unit Tests**: Test individual functions and methods
 - **Integration Tests**: Test database operations and API endpoints
 - **Mock Tests**: Use gomock for dependency mocking
+
+## 🔄 CI/CD
+
+This project uses GitHub Actions for continuous integration and deployment. The CI/CD pipeline includes code quality checks, testing, building, and automated deployment.
+
+### Workflows
+
+#### 1. CI Workflow (`ci.yml`)
+- **Triggers**: Push to `main`/`develop` branches, Pull Requests
+- **Features**:
+  - Code quality checks (linting, security scanning)
+  - Unit and integration tests with coverage
+  - Multi-platform builds
+  - Docker image building
+  - Code coverage reporting to Codecov
+
+#### 2. Release Workflow (`release.yml`)
+- **Triggers**: Version tag pushes (e.g., `v1.0.0`)
+- **Features**:
+  - Builds and publishes Docker images to GitHub Container Registry
+  - Creates GitHub Releases with assets
+  - Multi-architecture support (linux/amd64, linux/arm64)
+
+#### 3. Deploy Workflow (`deploy.yml`)
+- **Triggers**: After successful CI completion on `main` branch
+- **Features**:
+  - Automated deployment to staging environment
+  - Automated deployment to production environment
+  - Deployment notifications
+
+#### 4. Security Workflow (`security.yml`)
+- **Triggers**: Weekly schedule, manual dispatch, dependency changes
+- **Features**:
+  - Code security scanning (gosec)
+  - Dependency vulnerability checks (govulncheck)
+  - Docker image security scanning (Trivy)
+  - File system security scanning
+
+### Setup
+
+1. **Enable GitHub Actions** in your repository settings
+2. **Configure Secrets** for database connections and deployment
+3. **Set up Environments** for staging and production
+4. **Configure Dependabot** for automated dependency updates
+
+### Usage
+
+```bash
+# Create a new release
+git tag v1.0.0
+git push origin v1.0.0
+
+# Check workflow status
+# Visit: https://github.com/username/user-center/actions
+
+# View security scan results
+# Visit: https://github.com/username/user-center/security
+```
+
+For detailed configuration and troubleshooting, see [GitHub Actions Documentation](docs/github-actions.md).
 
 ## 🚀 Deployment
 

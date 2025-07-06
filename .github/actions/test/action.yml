@@ -1,0 +1,46 @@
+name: 'Run Tests'
+description: 'Run Go tests with coverage and various options'
+
+inputs:
+  coverage:
+    description: 'Generate coverage report'
+    required: false
+    default: 'true'
+  race:
+    description: 'Run tests with race detector'
+    required: false
+    default: 'false'
+  short:
+    description: 'Run only short tests'
+    required: false
+    default: 'false'
+  timeout:
+    description: 'Test timeout'
+    required: false
+    default: '10m'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install dependencies
+      shell: bash
+      run: |
+        go mod download
+        go mod verify
+
+    - name: Generate mocks
+      shell: bash
+      run: make mock
+
+    - name: Run tests
+      shell: bash
+      run: |
+        if [ "${{ inputs.coverage }}" = "true" ]; then
+          make test-coverage-xml
+        elif [ "${{ inputs.race }}" = "true" ]; then
+          make test-race
+        elif [ "${{ inputs.short }}" = "true" ]; then
+          make test-short
+        else
+          make test
+        fi 
