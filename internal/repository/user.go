@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/your-org/user-center/internal/dto"
-	"github.com/your-org/user-center/internal/model"
+	"github.com/zhwjimmy/user-center/internal/dto"
+	"github.com/zhwjimmy/user-center/internal/model"
 	"gorm.io/gorm"
 )
 

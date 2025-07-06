@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/your-org/user-center/internal/cache"
-	"github.com/your-org/user-center/internal/database"
-	"github.com/your-org/user-center/internal/dto"
+	"github.com/zhwjimmy/user-center/internal/cache"
+	"github.com/zhwjimmy/user-center/internal/database"
+	"github.com/zhwjimmy/user-center/internal/dto"
 	"go.uber.org/zap"
 )
 

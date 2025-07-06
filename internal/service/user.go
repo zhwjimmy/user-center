@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/your-org/user-center/internal/dto"
-	"github.com/your-org/user-center/internal/model"
-	"github.com/your-org/user-center/internal/repository"
+	"github.com/zhwjimmy/user-center/internal/dto"
+	"github.com/zhwjimmy/user-center/internal/model"
+	"github.com/zhwjimmy/user-center/internal/repository"
 	"go.uber.org/zap"
 )
 

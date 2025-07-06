@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/your-org/user-center/internal/config"
+	"github.com/zhwjimmy/user-center/internal/config"
 )
 
 // NewCORSMiddleware creates a new CORS middleware

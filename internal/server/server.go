@@ -9,9 +9,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
-	"github.com/your-org/user-center/internal/config"
-	"github.com/your-org/user-center/internal/handler"
-	"github.com/your-org/user-center/internal/middleware"
+	"github.com/zhwjimmy/user-center/internal/config"
+	"github.com/zhwjimmy/user-center/internal/handler"
+	"github.com/zhwjimmy/user-center/internal/middleware"
 	"go.uber.org/zap"
 )
 

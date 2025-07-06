@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/your-org/user-center/internal/config"
-	"github.com/your-org/user-center/internal/model"
+	"github.com/zhwjimmy/user-center/internal/config"
+	"github.com/zhwjimmy/user-center/internal/model"
 	"go.uber.org/zap"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"

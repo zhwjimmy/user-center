@@ -457,6 +457,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🔗 Related Links
 
 - [中文文档](README.zh-CN.md)
-- [Project Homepage](https://github.com/your-org/user-center)
-- [Issues](https://github.com/your-org/user-center/issues)
-- [Discussions](https://github.com/your-org/user-center/discussions) 
+- [Project Homepage](https://github.com/zhwjimmy/user-center)
+- [Issues](https://github.com/zhwjimmy/user-center/issues)
+- [Discussions](https://github.com/zhwjimmy/user-center/discussions) 

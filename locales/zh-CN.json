@@ -1,0 +1,39 @@
+{
+    "welcome": "欢迎使用用户中心",
+    "user": {
+        "created": "用户创建成功",
+        "updated": "用户更新成功",
+        "deleted": "用户删除成功",
+        "not_found": "用户不存在",
+        "already_exists": "用户已存在",
+        "invalid_credentials": "用户名或密码错误",
+        "registration_success": "注册成功",
+        "login_success": "登录成功",
+        "logout_success": "登出成功",
+        "password_changed": "密码修改成功",
+        "email_verified": "邮箱验证成功"
+    },
+    "validation": {
+        "required": "此字段为必填项",
+        "invalid_email": "邮箱格式不正确",
+        "password_too_short": "密码长度至少为8位",
+        "username_too_short": "用户名长度至少为3位",
+        "username_too_long": "用户名长度不能超过50位"
+    },
+    "error": {
+        "internal_server": "服务器内部错误",
+        "bad_request": "请求参数错误",
+        "unauthorized": "未授权访问",
+        "forbidden": "禁止访问",
+        "not_found": "资源不存在",
+        "rate_limit_exceeded": "请求频率超限",
+        "invalid_token": "无效的令牌",
+        "token_expired": "令牌已过期"
+    },
+    "health": {
+        "status": "服务运行正常",
+        "database": "数据库连接正常",
+        "redis": "Redis连接正常",
+        "mongodb": "MongoDB连接正常"
+    }
+}

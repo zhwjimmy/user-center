@@ -1,6 +1,6 @@
 package dto
 
-import "github.com/your-org/user-center/internal/model"
+import "github.com/zhwjimmy/user-center/internal/model"
 
 // RegisterRequest represents user registration request
 type RegisterRequest struct {

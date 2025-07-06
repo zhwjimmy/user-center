@@ -1,0 +1,39 @@
+{
+    "welcome": "Welcome to UserCenter",
+    "user": {
+        "created": "User created successfully",
+        "updated": "User updated successfully",
+        "deleted": "User deleted successfully",
+        "not_found": "User not found",
+        "already_exists": "User already exists",
+        "invalid_credentials": "Invalid credentials",
+        "registration_success": "Registration successful",
+        "login_success": "Login successful",
+        "logout_success": "Logout successful",
+        "password_changed": "Password changed successfully",
+        "email_verified": "Email verified successfully"
+    },
+    "validation": {
+        "required": "This field is required",
+        "invalid_email": "Invalid email format",
+        "password_too_short": "Password must be at least 8 characters",
+        "username_too_short": "Username must be at least 3 characters",
+        "username_too_long": "Username must be at most 50 characters"
+    },
+    "error": {
+        "internal_server": "Internal server error",
+        "bad_request": "Bad request",
+        "unauthorized": "Unauthorized",
+        "forbidden": "Forbidden",
+        "not_found": "Not found",
+        "rate_limit_exceeded": "Rate limit exceeded",
+        "invalid_token": "Invalid token",
+        "token_expired": "Token expired"
+    },
+    "health": {
+        "status": "Service is healthy",
+        "database": "Database connection is healthy",
+        "redis": "Redis connection is healthy",
+        "mongodb": "MongoDB connection is healthy"
+    }
+}

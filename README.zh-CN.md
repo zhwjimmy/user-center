@@ -455,6 +455,6 @@ kubectl get pods -l app=usercenter
 ## 🔗 相关链接
 
 - [英文文档](README.md)
-- [项目主页](https://github.com/your-org/user-center)
-- [问题反馈](https://github.com/your-org/user-center/issues)
-- [讨论区](https://github.com/your-org/user-center/discussions) 
+- [项目主页](https://github.com/zhwjimmy/user-center)
+- [问题反馈](https://github.com/zhwjimmy/user-center/issues)
+- [讨论区](https://github.com/zhwjimmy/user-center/discussions) 

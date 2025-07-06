@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/your-org/user-center/internal/dto"
-	"github.com/your-org/user-center/internal/model"
-	"github.com/your-org/user-center/pkg/jwt"
+	"github.com/zhwjimmy/user-center/internal/dto"
+	"github.com/zhwjimmy/user-center/internal/model"
+	"github.com/zhwjimmy/user-center/pkg/jwt"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 )

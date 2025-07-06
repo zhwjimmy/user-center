@@ -76,6 +76,23 @@ func (u *User) ToPublicUser() *PublicUser {
 	}
 }
 
+// JWT interface methods to avoid circular dependency
+func (u *User) GetID() uint {
+	return u.ID
+}
+
+func (u *User) GetUsername() string {
+	return u.Username
+}
+
+func (u *User) GetEmail() string {
+	return u.Email
+}
+
+func (u *User) GetStatus() string {
+	return string(u.Status)
+}
+
 // PublicUser represents public user information (without sensitive fields)
 type PublicUser struct {
 	ID        uint       `json:"id"`
