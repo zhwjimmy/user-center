@@ -49,15 +49,18 @@ jobs:
       with:
         go-version: ${{ env.GO_VERSION }}
         cache: true
+        cache-dependency-path: |
+          **/go.sum
 
     - name: Install tools
       run: |
         echo "Installing development tools..."
-        # go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-        go install github.com/golang/mock/mockgen@latest
-        go install github.com/axw/gocov/gocov@latest
-        go install github.com/AlekSi/gocov-xml@latest
-        go install github.com/google/wire/cmd/wire@latest
+        # Install tools in parallel for faster execution
+        go install github.com/golang/mock/mockgen@latest &
+        go install github.com/axw/gocov/gocov@latest &
+        go install github.com/AlekSi/gocov-xml@latest &
+        go install github.com/google/wire/cmd/wire@latest &
+        wait
         echo "Tools installed successfully"
 
     - name: Generate mocks
@@ -70,21 +73,15 @@ jobs:
       run: |
         echo "Current directory: $(pwd)"
         echo "Go version: $(go version)"
-        echo "Go env:"
-        go env
         echo "Downloading dependencies..."
         go mod download
         echo "Running go mod tidy..."
         go mod tidy
         echo "Verifying modules..."
         go mod verify
-        echo "Module graph:"
-        go mod graph
 
     - name: Verify dependencies
       run: |
-        go list -m all
-        go mod why go.uber.org/zap
         go build -o /dev/null ./cmd/usercenter
 
     # - name: Run linter
@@ -94,7 +91,12 @@ jobs:
     #   run: make security
 
     - name: Run tests with coverage
-      run: make test-coverage-xml
+      run: |
+        # Run tests with coverage in parallel
+        go test -v -coverprofile=coverage/coverage.out -covermode=atomic -p=4 ./...
+        # Generate XML coverage report
+        gocov convert coverage/coverage.out | gocov-xml > coverage/coverage.xml
+        echo "XML coverage report generated: coverage/coverage.xml"
       env:
         POSTGRES_HOST: localhost
         POSTGRES_PORT: 5432
