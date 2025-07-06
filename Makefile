@@ -21,6 +21,13 @@ GOVET := $(GOCMD) vet
 BINARY_NAME := $(APP_NAME)
 BINARY_UNIX := $(BINARY_NAME)_unix
 
+# Test coverage settings
+COVERAGE_DIR := coverage
+COVERAGE_OUT := $(COVERAGE_DIR)/coverage.out
+COVERAGE_HTML := $(COVERAGE_DIR)/coverage.html
+COVERAGE_XML := $(COVERAGE_DIR)/coverage.xml
+COVERAGE_FUNC := $(COVERAGE_DIR)/coverage.txt
+
 # Default target
 .PHONY: all
 all: clean deps lint test build
@@ -52,6 +59,7 @@ mock: ## Generate mock files
 	@echo "Generating mocks..."
 	mockgen -source=internal/service/user.go -destination=internal/mock/user_service_mock.go
 	mockgen -source=internal/repository/user.go -destination=internal/mock/user_repository_mock.go
+	mockgen -source=internal/service/auth.go -destination=internal/mock/auth_service_mock.go
 
 ##@ Building
 
@@ -94,22 +102,64 @@ test: ## Run tests
 	@echo "Running tests..."
 	$(GOTEST) -v ./...
 
+.PHONY: test-short
+test-short: ## Run only short tests (unit tests)
+	@echo "Running short tests..."
+	$(GOTEST) -v -short ./...
+
 .PHONY: test-coverage
 test-coverage: ## Run tests with coverage
 	@echo "Running tests with coverage..."
-	$(GOTEST) -v -coverprofile=coverage.out ./...
-	$(GOCMD) tool cover -html=coverage.out -o coverage.html
-	@echo "Coverage report generated: coverage.html"
+	@mkdir -p $(COVERAGE_DIR)
+	$(GOTEST) -v -coverprofile=$(COVERAGE_OUT) -covermode=atomic ./...
+	$(GOCMD) tool cover -html=$(COVERAGE_OUT) -o $(COVERAGE_HTML)
+	$(GOCMD) tool cover -func=$(COVERAGE_OUT) -o $(COVERAGE_FUNC)
+	@echo "Coverage report generated: $(COVERAGE_HTML)"
+	@echo "Coverage summary: $(COVERAGE_FUNC)"
+
+.PHONY: test-coverage-verbose
+test-coverage-verbose: ## Run tests with detailed coverage
+	@echo "Running tests with detailed coverage..."
+	@mkdir -p $(COVERAGE_DIR)
+	$(GOTEST) -v -coverprofile=$(COVERAGE_OUT) -covermode=atomic -coverpkg=./... ./...
+	$(GOCMD) tool cover -html=$(COVERAGE_OUT) -o $(COVERAGE_HTML)
+	$(GOCMD) tool cover -func=$(COVERAGE_OUT) -o $(COVERAGE_FUNC)
+	@echo "Coverage report generated: $(COVERAGE_HTML)"
+	@echo "Coverage summary: $(COVERAGE_FUNC)"
+	@echo "Coverage percentage:"
+	@tail -1 $(COVERAGE_FUNC)
+
+.PHONY: test-coverage-xml
+test-coverage-xml: ## Generate XML coverage report for CI/CD
+	@echo "Generating XML coverage report..."
+	@mkdir -p $(COVERAGE_DIR)
+	$(GOTEST) -v -coverprofile=$(COVERAGE_OUT) -covermode=atomic ./...
+	gocov convert $(COVERAGE_OUT) | gocov-xml > $(COVERAGE_XML)
+	@echo "XML coverage report generated: $(COVERAGE_XML)"
 
 .PHONY: test-race
 test-race: ## Run tests with race detector
 	@echo "Running tests with race detector..."
 	$(GOTEST) -v -race ./...
 
-.PHONY: benchmark
-benchmark: ## Run benchmarks
+.PHONY: test-benchmark
+test-benchmark: ## Run benchmarks
 	@echo "Running benchmarks..."
 	$(GOTEST) -v -bench=. -benchmem ./...
+
+.PHONY: test-integration
+test-integration: ## Run integration tests
+	@echo "Running integration tests..."
+	$(GOTEST) -v -tags=integration ./...
+
+.PHONY: test-all
+test-all: test-short test-integration test-coverage ## Run all types of tests
+	@echo "All tests completed"
+
+.PHONY: test-watch
+test-watch: ## Run tests in watch mode (requires air)
+	@echo "Running tests in watch mode..."
+	air -c .air.toml
 
 ##@ Code Quality
 
@@ -186,7 +236,8 @@ clean: ## Clean build artifacts
 	@echo "Cleaning..."
 	$(GOCLEAN)
 	rm -rf $(BUILD_DIR)
-	rm -f coverage.out coverage.html
+	rm -rf $(COVERAGE_DIR)
+	rm -f coverage.out coverage.html coverage.xml
 
 .PHONY: clean-cache
 clean-cache: ## Clean Go module cache
@@ -204,6 +255,9 @@ install-tools: ## Install development tools
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
 	go install github.com/golang/mock/mockgen@latest
+	go install github.com/axw/gocov/gocov@latest
+	go install github.com/AlekSi/gocov-xml@latest
+	go install github.com/cosmtrek/air@latest
 
 ##@ Information
 

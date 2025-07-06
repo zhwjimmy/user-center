@@ -10,20 +10,46 @@ import (
 	"gorm.io/gorm"
 )
 
-// UserRepository handles user data access
-type UserRepository struct {
+// UserRepository defines user data access interface
+//go:generate mockgen -destination=../mock/user_repository_mock.go -package=mock github.com/zhwjimmy/user-center/internal/repository UserRepository
+// 注意：上面go:generate用于mockgen自动生成
+
+type UserRepository interface {
+	Create(ctx context.Context, user *model.User) (*model.User, error)
+	GetByID(ctx context.Context, id uint) (*model.User, error)
+	GetByUUID(ctx context.Context, uuid string) (*model.User, error)
+	GetByEmail(ctx context.Context, email string) (*model.User, error)
+	GetByUsername(ctx context.Context, username string) (*model.User, error)
+	Update(ctx context.Context, user *model.User) (*model.User, error)
+	Delete(ctx context.Context, id uint) error
+	List(ctx context.Context, req *dto.UserListRequest) ([]*model.User, int64, error)
+	Search(ctx context.Context, term string, limit int) ([]*model.User, error)
+	GetByIDs(ctx context.Context, ids []uint) ([]*model.User, error)
+	ExistsByEmail(ctx context.Context, email string) (bool, error)
+	ExistsByUsername(ctx context.Context, username string) (bool, error)
+	UpdateStatus(ctx context.Context, id uint, status model.UserStatus) error
+	UpdateActiveStatus(ctx context.Context, id uint, isActive bool) error
+	GetActiveUsers(ctx context.Context) ([]*model.User, error)
+	GetUsersByStatus(ctx context.Context, status model.UserStatus) ([]*model.User, error)
+	CountUsers(ctx context.Context) (int64, error)
+	CountActiveUsers(ctx context.Context) (int64, error)
+}
+
+// userRepository is the concrete implementation
+// of UserRepository interface
+type userRepository struct {
 	db *gorm.DB
 }
 
 // NewUserRepository creates a new user repository
-func NewUserRepository(db *gorm.DB) *UserRepository {
-	return &UserRepository{
+func NewUserRepository(db *gorm.DB) UserRepository {
+	return &userRepository{
 		db: db,
 	}
 }
 
 // Create creates a new user
-func (r *UserRepository) Create(ctx context.Context, user *model.User) (*model.User, error) {
+func (r *userRepository) Create(ctx context.Context, user *model.User) (*model.User, error) {
 	if err := r.db.WithContext(ctx).Create(user).Error; err != nil {
 		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
@@ -31,7 +57,7 @@ func (r *UserRepository) Create(ctx context.Context, user *model.User) (*model.U
 }
 
 // GetByID retrieves a user by ID
-func (r *UserRepository) GetByID(ctx context.Context, id uint) (*model.User, error) {
+func (r *userRepository) GetByID(ctx context.Context, id uint) (*model.User, error) {
 	var user model.User
 	if err := r.db.WithContext(ctx).First(&user, id).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -43,7 +69,7 @@ func (r *UserRepository) GetByID(ctx context.Context, id uint) (*model.User, err
 }
 
 // GetByUUID retrieves a user by UUID
-func (r *UserRepository) GetByUUID(ctx context.Context, uuid string) (*model.User, error) {
+func (r *userRepository) GetByUUID(ctx context.Context, uuid string) (*model.User, error) {
 	var user model.User
 	if err := r.db.WithContext(ctx).Where("uuid = ?", uuid).First(&user).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -55,7 +81,7 @@ func (r *UserRepository) GetByUUID(ctx context.Context, uuid string) (*model.Use
 }
 
 // GetByEmail retrieves a user by email
-func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*model.User, error) {
+func (r *userRepository) GetByEmail(ctx context.Context, email string) (*model.User, error) {
 	var user model.User
 	if err := r.db.WithContext(ctx).Where("email = ?", email).First(&user).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -67,7 +93,7 @@ func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*model.U
 }
 
 // GetByUsername retrieves a user by username
-func (r *UserRepository) GetByUsername(ctx context.Context, username string) (*model.User, error) {
+func (r *userRepository) GetByUsername(ctx context.Context, username string) (*model.User, error) {
 	var user model.User
 	if err := r.db.WithContext(ctx).Where("username = ?", username).First(&user).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -79,7 +105,7 @@ func (r *UserRepository) GetByUsername(ctx context.Context, username string) (*m
 }
 
 // Update updates a user
-func (r *UserRepository) Update(ctx context.Context, user *model.User) (*model.User, error) {
+func (r *userRepository) Update(ctx context.Context, user *model.User) (*model.User, error) {
 	if err := r.db.WithContext(ctx).Save(user).Error; err != nil {
 		return nil, fmt.Errorf("failed to update user: %w", err)
 	}
@@ -87,7 +113,7 @@ func (r *UserRepository) Update(ctx context.Context, user *model.User) (*model.U
 }
 
 // Delete soft deletes a user
-func (r *UserRepository) Delete(ctx context.Context, id uint) error {
+func (r *userRepository) Delete(ctx context.Context, id uint) error {
 	if err := r.db.WithContext(ctx).Delete(&model.User{}, id).Error; err != nil {
 		return fmt.Errorf("failed to delete user: %w", err)
 	}
@@ -95,7 +121,7 @@ func (r *UserRepository) Delete(ctx context.Context, id uint) error {
 }
 
 // List retrieves users with pagination and filters
-func (r *UserRepository) List(ctx context.Context, req *dto.UserListRequest) ([]*model.User, int64, error) {
+func (r *userRepository) List(ctx context.Context, req *dto.UserListRequest) ([]*model.User, int64, error) {
 	var users []*model.User
 	var total int64
 
@@ -140,7 +166,7 @@ func (r *UserRepository) List(ctx context.Context, req *dto.UserListRequest) ([]
 }
 
 // Search searches users by term
-func (r *UserRepository) Search(ctx context.Context, term string, limit int) ([]*model.User, error) {
+func (r *userRepository) Search(ctx context.Context, term string, limit int) ([]*model.User, error) {
 	var users []*model.User
 	searchTerm := "%" + strings.ToLower(term) + "%"
 
@@ -157,7 +183,7 @@ func (r *UserRepository) Search(ctx context.Context, term string, limit int) ([]
 }
 
 // GetByIDs retrieves multiple users by IDs
-func (r *UserRepository) GetByIDs(ctx context.Context, ids []uint) ([]*model.User, error) {
+func (r *userRepository) GetByIDs(ctx context.Context, ids []uint) ([]*model.User, error) {
 	var users []*model.User
 	if err := r.db.WithContext(ctx).Where("id IN ?", ids).Find(&users).Error; err != nil {
 		return nil, fmt.Errorf("failed to get users by IDs: %w", err)
@@ -166,7 +192,7 @@ func (r *UserRepository) GetByIDs(ctx context.Context, ids []uint) ([]*model.Use
 }
 
 // ExistsByEmail checks if a user exists by email
-func (r *UserRepository) ExistsByEmail(ctx context.Context, email string) (bool, error) {
+func (r *userRepository) ExistsByEmail(ctx context.Context, email string) (bool, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).Model(&model.User{}).Where("email = ?", email).Count(&count).Error; err != nil {
 		return false, fmt.Errorf("failed to check user existence by email: %w", err)
@@ -175,7 +201,7 @@ func (r *UserRepository) ExistsByEmail(ctx context.Context, email string) (bool,
 }
 
 // ExistsByUsername checks if a user exists by username
-func (r *UserRepository) ExistsByUsername(ctx context.Context, username string) (bool, error) {
+func (r *userRepository) ExistsByUsername(ctx context.Context, username string) (bool, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).Model(&model.User{}).Where("username = ?", username).Count(&count).Error; err != nil {
 		return false, fmt.Errorf("failed to check user existence by username: %w", err)
@@ -184,7 +210,7 @@ func (r *UserRepository) ExistsByUsername(ctx context.Context, username string) 
 }
 
 // UpdateStatus updates user status
-func (r *UserRepository) UpdateStatus(ctx context.Context, id uint, status model.UserStatus) error {
+func (r *userRepository) UpdateStatus(ctx context.Context, id uint, status model.UserStatus) error {
 	if err := r.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", id).Update("status", status).Error; err != nil {
 		return fmt.Errorf("failed to update user status: %w", err)
 	}
@@ -192,7 +218,7 @@ func (r *UserRepository) UpdateStatus(ctx context.Context, id uint, status model
 }
 
 // UpdateActiveStatus updates user active status
-func (r *UserRepository) UpdateActiveStatus(ctx context.Context, id uint, isActive bool) error {
+func (r *userRepository) UpdateActiveStatus(ctx context.Context, id uint, isActive bool) error {
 	if err := r.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", id).Update("is_active", isActive).Error; err != nil {
 		return fmt.Errorf("failed to update user active status: %w", err)
 	}
@@ -200,7 +226,7 @@ func (r *UserRepository) UpdateActiveStatus(ctx context.Context, id uint, isActi
 }
 
 // GetActiveUsers retrieves all active users
-func (r *UserRepository) GetActiveUsers(ctx context.Context) ([]*model.User, error) {
+func (r *userRepository) GetActiveUsers(ctx context.Context) ([]*model.User, error) {
 	var users []*model.User
 	if err := r.db.WithContext(ctx).Where("is_active = ? AND status = ?", true, model.UserStatusActive).Find(&users).Error; err != nil {
 		return nil, fmt.Errorf("failed to get active users: %w", err)
@@ -209,7 +235,7 @@ func (r *UserRepository) GetActiveUsers(ctx context.Context) ([]*model.User, err
 }
 
 // GetUsersByStatus retrieves users by status
-func (r *UserRepository) GetUsersByStatus(ctx context.Context, status model.UserStatus) ([]*model.User, error) {
+func (r *userRepository) GetUsersByStatus(ctx context.Context, status model.UserStatus) ([]*model.User, error) {
 	var users []*model.User
 	if err := r.db.WithContext(ctx).Where("status = ?", status).Find(&users).Error; err != nil {
 		return nil, fmt.Errorf("failed to get users by status: %w", err)
@@ -218,7 +244,7 @@ func (r *UserRepository) GetUsersByStatus(ctx context.Context, status model.User
 }
 
 // CountUsers returns the total number of users
-func (r *UserRepository) CountUsers(ctx context.Context) (int64, error) {
+func (r *userRepository) CountUsers(ctx context.Context) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).Model(&model.User{}).Count(&count).Error; err != nil {
 		return 0, fmt.Errorf("failed to count users: %w", err)
@@ -227,7 +253,7 @@ func (r *UserRepository) CountUsers(ctx context.Context) (int64, error) {
 }
 
 // CountActiveUsers returns the number of active users
-func (r *UserRepository) CountActiveUsers(ctx context.Context) (int64, error) {
+func (r *userRepository) CountActiveUsers(ctx context.Context) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).Model(&model.User{}).Where("is_active = ? AND status = ?", true, model.UserStatusActive).Count(&count).Error; err != nil {
 		return 0, fmt.Errorf("failed to count active users: %w", err)

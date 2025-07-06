@@ -17,6 +17,8 @@ main
 *.test
 
 # Output of the go coverage tool
+coverage.txt
+*.cov
 go.sum
 coverage.out
 coverage.html

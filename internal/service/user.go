@@ -12,13 +12,13 @@ import (
 
 // UserService handles user business logic
 type UserService struct {
-	userRepo *repository.UserRepository
+	userRepo repository.UserRepository
 	logger   *zap.Logger
 }
 
 // NewUserService creates a new user service
 func NewUserService(
-	userRepo *repository.UserRepository,
+	userRepo repository.UserRepository,
 	logger *zap.Logger,
 ) *UserService {
 	return &UserService{

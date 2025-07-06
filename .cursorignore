@@ -79,11 +79,14 @@ docker-compose.override.yml
 *.tfstate.*
 .terraform/
 
-# Coverage reports
+# Coverage reports and directories
+coverage/
 coverage.out
 coverage.html
 coverage.xml
+coverage.txt
 *.cover
+*.cov
 
 # Profiling data
 *.prof
@@ -132,8 +135,6 @@ pgdata/
 
 # Git files (if needed for some reason)
 .git/
-.gitignore
-
 # Documentation build files
 site/
 _site/
