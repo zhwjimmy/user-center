@@ -53,7 +53,9 @@ jobs:
     - name: Install dependencies
       run: |
         go mod download
+        go mod tidy
         go mod verify
+        go mod graph
 
     - name: Install tools
       run: |
@@ -64,6 +66,12 @@ jobs:
 
     - name: Generate mocks
       run: make mock
+
+    - name: Verify dependencies
+      run: |
+        go list -m all
+        go mod why go.uber.org/zap
+        go build -o /dev/null ./cmd/usercenter
 
     # - name: Run linter
     #   run: make lint
