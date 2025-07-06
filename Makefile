@@ -57,9 +57,9 @@ swagger: ## Generate Swagger documentation
 .PHONY: mock
 mock: ## Generate mock files
 	@echo "Generating mocks..."
-	mockgen -source=internal/service/user.go -destination=internal/mock/user_service_mock.go
-	mockgen -source=internal/repository/user.go -destination=internal/mock/user_repository_mock.go
-	mockgen -source=internal/service/auth.go -destination=internal/mock/auth_service_mock.go
+	mockgen -source=internal/service/user.go -destination=internal/mock/user_service_mock.go -package=mock
+	mockgen -source=internal/repository/user.go -destination=internal/mock/user_repository_mock.go -package=mock
+	mockgen -source=internal/service/auth.go -destination=internal/mock/auth_service_mock.go -package=mock
 
 ##@ Building
 
