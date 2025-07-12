@@ -133,23 +133,15 @@ go test -v -coverprofile=coverage/coverage.out -covermode=atomic -p=8 ./...
 
 ## 🔧 实施步骤
 
-### 1. 立即优化 (ci.yml)
+### 1. 应用优化配置
 ```bash
-# 应用基础优化
+# 应用所有优化到 ci.yml
 git add .github/workflows/ci.yml
-git commit -m "ci: optimize container initialization and caching"
+git commit -m "ci: optimize container initialization, caching, and parallel execution"
 git push
 ```
 
-### 2. 高级优化 (ci-fast.yml)
-```bash
-# 应用高级优化
-git add .github/workflows/ci-fast.yml
-git commit -m "ci: add fast CI configuration with parallel execution"
-git push
-```
-
-### 3. 监控和调优
+### 2. 监控和调优
 - 监控每次 CI 运行时间
 - 分析缓存命中率
 - 根据实际效果调整参数

@@ -22,11 +22,12 @@ jobs:
           POSTGRES_PASSWORD: postgres
           POSTGRES_USER: postgres
           POSTGRES_DB: usercenter_test
+          POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
         options: >-
           --health-cmd pg_isready
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 3
+          --health-interval 3s
+          --health-timeout 2s
+          --health-retries 2
         ports:
           - 5432:5432
       
@@ -34,9 +35,9 @@ jobs:
         image: redis:7-alpine
         options: >-
           --health-cmd "redis-cli ping"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 3
+          --health-interval 3s
+          --health-timeout 2s
+          --health-retries 2
         ports:
           - 6379:6379
 
@@ -53,67 +54,56 @@ jobs:
           **/go.sum
           go.mod
 
-    - name: Cache Go tools
+    # 优化缓存策略 - 合并工具和依赖缓存
+    - name: Cache Go tools and dependencies
       uses: actions/cache@v4
       with:
         path: |
           $HOME/go/bin
           $HOME/.cache/go-build
-        key: ${{ runner.os }}-go-tools-${{ hashFiles('go.mod') }}-${{ hashFiles('Makefile') }}
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('go.mod', 'go.sum', 'Makefile') }}
         restore-keys: |
-          ${{ runner.os }}-go-tools-${{ hashFiles('go.mod') }}-
-          ${{ runner.os }}-go-tools-
+          ${{ runner.os }}-go-${{ hashFiles('go.mod', 'go.sum') }}-
+          ${{ runner.os }}-go-
 
-    - name: Install tools (cached)
+    # 并行安装工具和依赖
+    - name: Install tools and dependencies
       run: |
-        echo "Installing development tools..."
+        echo "Installing development tools and dependencies..."
         
-        # Check if tools are already installed
-        if [ -f "$HOME/go/bin/mockgen" ] && [ -f "$HOME/go/bin/wire" ] && [ -f "$HOME/go/bin/gocov" ] && [ -f "$HOME/go/bin/gocov-xml" ]; then
-          echo "Tools already installed, skipping installation"
-        else
-          echo "Installing tools to $HOME/go/bin..."
-          go install github.com/golang/mock/mockgen@v1.6.0
-          go install github.com/axw/gocov/gocov@latest
-          go install github.com/AlekSi/gocov-xml@latest
-          go install github.com/google/wire/cmd/wire@v0.6.0
-          echo "Tools installed successfully"
-        fi
+        # 并行安装工具
+        (
+          echo "Installing tools..."
+          go install github.com/golang/mock/mockgen@v1.6.0 &
+          go install github.com/axw/gocov/gocov@latest &
+          go install github.com/AlekSi/gocov-xml@latest &
+          go install github.com/google/wire/cmd/wire@v0.6.0 &
+          wait
+        )
         
+        # 并行下载依赖
+        (
+          echo "Downloading dependencies..."
+          go mod download &
+          go mod tidy &
+          wait
+        )
+        
+        echo "Tools and dependencies installed successfully"
         echo "Installed tools:"
         ls -la $HOME/go/bin/
         
         # Add tools to PATH
         echo "$HOME/go/bin" >> $GITHUB_PATH
 
-    - name: Cache dependencies
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.cache/go-build
-          ~/go/pkg/mod
-        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-        restore-keys: |
-          ${{ runner.os }}-go-
-
-    - name: Install dependencies
+    # 并行生成代码
+    - name: Generate code
       run: |
-        echo "Current directory: $(pwd)"
-        echo "Go version: $(go version)"
-        echo "Downloading dependencies..."
-        go mod download
-        echo "Running go mod tidy..."
-        go mod tidy
-        echo "Verifying modules..."
-        go mod verify
-        echo "Dependencies installed successfully"
-
-    - name: Generate mocks and Wire code
-      run: |
-        echo "Generating mocks..."
-        make mock
-        echo "Generating Wire code..."
-        make wire
+        echo "Generating mocks and Wire code..."
+        make mock &
+        make wire &
+        wait
         echo "Code generation completed"
 
     - name: Verify dependencies
@@ -124,8 +114,8 @@ jobs:
       run: |
         # Create coverage directory
         mkdir -p coverage
-        # Run tests with coverage in parallel
-        go test -v -coverprofile=coverage/coverage.out -covermode=atomic -p=4 ./...
+        # Run tests with coverage in parallel (increased parallelism)
+        go test -v -coverprofile=coverage/coverage.out -covermode=atomic -p=8 ./...
         # Generate XML coverage report
         gocov convert coverage/coverage.out | gocov-xml > coverage/coverage.xml
         echo "XML coverage report generated: coverage/coverage.xml"
