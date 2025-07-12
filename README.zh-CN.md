@@ -12,6 +12,7 @@
 - [技术栈](#技术栈)
 - [环境要求](#环境要求)
 - [快速开始](#快速开始)
+- [故障排除](#故障排除)
 - [配置说明](#配置说明)
 - [API 文档](#api-文档)
 - [开发指南](#开发指南)
@@ -53,6 +54,8 @@ UserCenter 是一个基于 Go 语言构建的生产就绪的用户中心服务�
 - 账户状态管理（活跃、非活跃、暂停）
 - 软删除支持
 - 批量用户操作
+- UUID 用户标识符
+- 密码强度验证
 
 ### API 特性
 - RESTful API 设计
@@ -61,6 +64,8 @@ UserCenter 是一个基于 Go 语言构建的生产就绪的用户中心服务�
 - 请求 ID 追踪
 - CORS 配置
 - Swagger/OpenAPI 文档
+- 国际化支持（中文/英文）
+- 优雅的错误处理
 
 ### 监控与可观测性
 - 所有依赖的健康检查端点
@@ -68,6 +73,8 @@ UserCenter 是一个基于 Go 语言构建的生产就绪的用户中心服务�
 - 使用 Zap 的结构化日志
 - 使用 OpenTelemetry 的分布式追踪
 - 性能监控
+- 实时性能分析（pprof）
+- 自定义业务指标
 
 ## 🛠️ 技术栈
 
@@ -81,6 +88,7 @@ UserCenter 是一个基于 Go 语言构建的生产就绪的用户中心服务�
 - **辅助数据库**：[MongoDB](https://www.mongodb.com/) - 日志和会话数据
 - **缓存**：[Redis](https://redis.io/) - 高性能缓存
 - **数据库迁移**：[Goose](https://github.com/pressly/goose) - 数据库版本控制
+- **UUID 生成**：PostgreSQL pgcrypto 扩展
 
 ### 消息和任务处理
 - **消息队列**：[Kafka](https://kafka.apache.org/) - 事件消费
@@ -129,7 +137,9 @@ go install github.com/swaggo/swag/cmd/swag@latest
 # 安装覆盖率工具
 go install github.com/axw/gocov/gocov@latest
 go install github.com/AlekSi/gocov-xml@latest
-```
+
+# 安装性能分析工具
+go install github.com/google/pprof@latest
 
 ## 🚀 快速开始
 
@@ -183,6 +193,115 @@ go run cmd/usercenter/main.go
 # 生产环境
 make build
 ./bin/usercenter
+```
+
+### 8. 验证服务
+```bash
+# 检查健康状态
+curl http://localhost:8080/health
+
+# 访问 Swagger 文档
+open http://localhost:8080/swagger/index.html
+```
+
+## 🔧 故障排除
+
+### 常见问题
+
+#### 1. 数据库连接失败
+```bash
+# 检查 PostgreSQL 服务状态
+sudo systemctl status postgresql
+
+# 检查连接参数
+psql -h localhost -U username -d usercenter
+
+# 常见解决方案：
+# - 确保 PostgreSQL 服务正在运行
+# - 验证用户名和密码
+# - 检查数据库是否存在
+# - 确认端口 5432 可访问
+```
+
+#### 2. 数据库迁移失败
+```bash
+# 检查迁移状态
+make migrate-status
+
+# 重置数据库（谨慎使用）
+make migrate-down
+make migrate-up
+
+# 常见解决方案：
+# - 确保数据库表结构正确
+# - 检查 pgcrypto 扩展是否已安装
+# - 验证用户权限
+```
+
+#### 3. 服务启动失败
+```bash
+# 检查端口占用
+lsof -i :8080
+
+# 查看详细错误日志
+make run 2>&1 | tee server.log
+
+# 常见解决方案：
+# - 确保所有依赖服务正在运行
+# - 检查配置文件语法
+# - 验证环境变量设置
+```
+
+#### 4. JWT 认证问题
+```bash
+# 检查 JWT 配置
+grep -r "jwt" configs/
+
+# 常见解决方案：
+# - 确保 JWT 密钥已正确设置
+# - 检查 Token 过期时间配置
+# - 验证 Token 格式
+```
+
+#### 5. 依赖服务问题
+```bash
+# 检查 Redis 连接
+redis-cli ping
+
+# 检查 MongoDB 连接
+mongosh --eval "db.runCommand('ping')"
+
+# 检查 Kafka 连接
+kafka-topics --list --bootstrap-server localhost:9092
+
+# 常见解决方案：
+# - 确保所有服务正在运行
+# - 检查网络连接
+# - 验证配置参数
+```
+
+### 日志分析
+```bash
+# 查看实时日志
+tail -f logs/usercenter.log
+
+# 搜索错误日志
+grep -i error logs/usercenter.log
+
+# 查看性能指标
+curl http://localhost:8080/metrics
+```
+
+### 性能调优
+```bash
+# 启用性能分析
+export USERCENTER_PROFILING=true
+
+# 监控内存使用
+go tool pprof http://localhost:8080/debug/pprof/heap
+
+# 监控 CPU 使用
+go tool pprof http://localhost:8080/debug/pprof/profile
 ```
 
 ## ⚙️ 配置说明
@@ -370,6 +489,8 @@ make docker-clean           # 清理 Docker 产物
 
 # 工具
 make help                   # 显示所有可用命令
+make profiling              # 启用性能分析
+make logs                   # 查看实时日志
 ```
 
 ## 🧪 测试说明
@@ -409,6 +530,8 @@ go test -run TestUserService_CreateUser ./...
 - **集成测试**：测试数据库操作和 API 端点
 - **Mock 测试**：使用 gomock 进行依赖模拟
 - **Mock 生成**：使用 `mockgen` 自动生成 Mock
+- **性能测试**：基准测试和压力测试
+- **安全测试**：JWT 和认证测试
 
 ## 🔄 CI/CD
 
@@ -533,6 +656,8 @@ kubectl get pods -l app=usercenter
 ## 🔗 相关链接
 
 - [英文文档](README.md)
-- [项目主页](https://github.com/zhwjimmy/user-center)
-- [问题反馈](https://github.com/zhwjimmy/user-center/issues)
-- [讨论区](https://github.com/zhwjimmy/user-center/discussions) 
+- [项目主页](https://github.com/username/user-center)
+- [问题反馈](https://github.com/username/user-center/issues)
+- [讨论区](https://github.com/username/user-center/discussions)
+- [Docker Hub](https://hub.docker.com/r/username/user-center)
+- [GitHub Container Registry](https://github.com/username/user-center/packages) 
