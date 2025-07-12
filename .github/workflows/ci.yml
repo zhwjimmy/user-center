@@ -51,17 +51,38 @@ jobs:
         cache: true
         cache-dependency-path: |
           **/go.sum
+          go.mod
+
+    - name: Cache Go tools
+      uses: actions/cache@v4
+      with:
+        path: |
+          $HOME/go/bin
+          $HOME/.cache/go-build
+        key: ${{ runner.os }}-go-tools-${{ hashFiles('go.mod') }}
+        restore-keys: |
+          ${{ runner.os }}-go-tools-
 
     - name: Install tools
       run: |
         echo "Installing development tools..."
-        # Install tools in parallel for faster execution
-        go install github.com/golang/mock/mockgen@latest &
-        go install github.com/axw/gocov/gocov@latest &
-        go install github.com/AlekSi/gocov-xml@latest &
-        go install github.com/google/wire/cmd/wire@latest &
-        wait
-        echo "Tools installed successfully"
+        
+        # Check if tools are already installed
+        if command -v mockgen >/dev/null 2>&1 && command -v gocov >/dev/null 2>&1 && command -v gocov-xml >/dev/null 2>&1 && command -v wire >/dev/null 2>&1; then
+          echo "Tools already installed, skipping installation"
+        else
+          echo "Installing tools..."
+          # Install tools with specific versions for better caching
+          go install github.com/golang/mock/mockgen@v1.6.0 &
+          go install github.com/axw/gocov/gocov@latest &
+          go install github.com/AlekSi/gocov-xml@latest &
+          go install github.com/google/wire/cmd/wire@v0.6.0 &
+          wait
+          echo "Tools installed successfully"
+        fi
+        
+        # Add tools to PATH
+        echo "$HOME/go/bin" >> $GITHUB_PATH
 
     - name: Generate mocks
       run: make mock
@@ -79,6 +100,7 @@ jobs:
         go mod tidy
         echo "Verifying modules..."
         go mod verify
+        echo "Dependencies installed successfully"
 
     - name: Verify dependencies
       run: |
