@@ -202,10 +202,14 @@ jobs:
           --file Dockerfile \
           .
 
-    - name: Upload Docker image
-      uses: actions/upload-artifact@v4
-      with:
-        name: docker-image
-        path: |
-          usercenter:latest
-        retention-days: 30 
+    # Docker 镜像构建完成，如需保存为 artifact 可取消注释以下步骤
+    # - name: Save Docker image
+    #   run: |
+    #     docker save usercenter:latest -o usercenter-latest.tar
+    #
+    # - name: Upload Docker image
+    #   uses: actions/upload-artifact@v4
+    #   with:
+    #     name: docker-image
+    #     path: usercenter-latest.tar
+    #     retention-days: 30 
