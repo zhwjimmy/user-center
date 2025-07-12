@@ -7,22 +7,27 @@ RUN apk add --no-cache git ca-certificates tzdata
 # Set working directory
 WORKDIR /app
 
-# Copy go mod files
+# Copy go mod files first for better caching
 COPY go.mod go.sum ./
 
-# Download dependencies
+# Download dependencies (this layer will be cached if go.mod/go.sum don't change)
 RUN go mod download
 
-# Copy source code
-COPY . .
+# Install build tools (cached layer)
+RUN go install github.com/google/wire/cmd/wire@latest && \
+    go install github.com/swaggo/swag/cmd/swag@latest
 
-# Generate wire code
-RUN go install github.com/google/wire/cmd/wire@latest
-RUN wire ./cmd/usercenter
+# Copy source code (only necessary files)
+COPY cmd/ ./cmd/
+COPY internal/ ./internal/
+COPY pkg/ ./pkg/
+COPY configs/ ./configs/
+COPY migrations/ ./migrations/
+COPY locales/ ./locales/
 
-# Generate swagger docs
-RUN go install github.com/swaggo/swag/cmd/swag@latest
-RUN swag init -g cmd/usercenter/main.go -o docs
+# Generate wire code and swagger docs
+RUN wire ./cmd/usercenter && \
+    swag init -g cmd/usercenter/main.go -o docs
 
 # Build the application
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
