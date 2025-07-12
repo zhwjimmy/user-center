@@ -161,8 +161,8 @@ jobs:
         echo "Generating Wire dependency injection code..."
         wire ./cmd/usercenter
 
-    - name: Build for multiple platforms
-      run: make build-all
+    - name: Build application
+      run: make build
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
