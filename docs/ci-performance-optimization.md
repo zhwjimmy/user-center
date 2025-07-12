@@ -166,6 +166,23 @@ gh run view <run-id> --log
 
 ## 🛠️ 故障排除
 
+### Wire 代码生成问题
+```bash
+# 错误: undefined: InitializeApp
+# 原因: 构建前未生成 Wire 依赖注入代码
+# 解决方案: 在 Build job 中添加 Wire 代码生成步骤
+
+- name: Install Wire tool
+  run: |
+    go install github.com/google/wire/cmd/wire@v0.6.0
+    echo "$HOME/go/bin" >> $GITHUB_PATH
+
+- name: Generate Wire code
+  run: |
+    echo "Generating Wire dependency injection code..."
+    wire ./cmd/usercenter
+```
+
 ### Codecov 配置问题
 ```yaml
 # 错误配置 (v3 版本)
