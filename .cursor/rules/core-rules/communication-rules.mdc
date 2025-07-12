@@ -8,7 +8,17 @@
 - Keep messages concise but descriptive
 - Explain what and why, not how
 
-### 2. Commit Message Examples
+### 2. Pull Request Standards
+- **Pull Request titles MUST be in English**
+- **Pull Request descriptions MUST be in English**
+- Use clear and descriptive titles
+- Provide comprehensive descriptions with:
+  - Summary of changes
+  - Technical details
+  - Testing information
+  - Breaking changes (if any)
+
+### 3. Commit Message Examples
 ```bash
 # ✅ Good examples
 git commit -m "fix: ensure user center starts and migrates DB correctly"
@@ -22,7 +32,7 @@ git commit -m "更新代码"
 git commit -m "fix bug"
 ```
 
-### 3. Conventional Commit Format
+### 4. Conventional Commit Format
 ```
 <type>[optional scope]: <description>
 
@@ -48,13 +58,19 @@ git commit -m "fix bug"
 - Provide detailed explanations in Chinese
 - Use Chinese for all explanations, discussions, and clarifications
 
-### 2. Code Comments
+### 2. Pull Request Communication
+- **Pull Request titles and descriptions MUST be in English**
+- **Pull Request comments and reviews can be in Chinese or English**
+- Use English for technical discussions in PRs
+- Use Chinese for business logic explanations when needed
+
+### 3. Code Comments
 - **Code comments can be in English or Chinese**
 - Follow team conventions for code comments
 - Use English for technical terms and API documentation
 - Use Chinese for business logic explanations when needed
 
-### 3. Documentation
+### 4. Documentation
 - **README and user-facing docs: Chinese preferred**
 - **API documentation: English required**
 - **Technical documentation: English preferred**
@@ -68,13 +84,19 @@ git commit -m "fix bug"
 - Provide clear, descriptive messages
 - Reference issues or tickets when applicable
 
-### 2. When Responding to User
+### 2. When Creating Pull Requests
+- Always use English for PR titles and descriptions
+- Provide comprehensive change summaries
+- Include technical details and testing information
+- Use clear formatting with emojis and checklists
+
+### 3. When Responding to User
 - Always respond in Chinese
 - Provide detailed explanations
 - Use professional but friendly tone
 - Include relevant code examples when helpful
 
-### 3. When Writing Documentation
+### 4. When Writing Documentation
 - Choose language based on audience
 - Be consistent within each document
 - Consider international team members
@@ -88,6 +110,9 @@ git commit -m "fix bug"
 git add .
 git commit -m "fix: resolve database migration issues with UUID fields"
 git push
+
+# ✅ Correct - English PR description
+gh pr create --title "fix: resolve database migration issues" --body "## Changes\n- Fixed UUID field handling in migrations\n- Updated model definitions\n- Added comprehensive tests"
 
 # ✅ Correct - Chinese response to user
 "代码已成功提交到远程仓库。修复了数据库迁移中 UUID 字段的问题。"
@@ -106,6 +131,7 @@ func (s *AuthService) Login(ctx context.Context, req *dto.LoginRequest) (*model.
 ## Consistency Checklist
 
 - [ ] Commit messages in English
+- [ ] Pull Request titles and descriptions in English
 - [ ] Conversation responses in Chinese
 - [ ] Code comments follow team conventions
 - [ ] Documentation language appropriate for audience
