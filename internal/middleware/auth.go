@@ -126,7 +126,7 @@ func (m *AuthMiddleware) RequireActiveUser() gin.HandlerFunc {
 		userClaims := claims.(*jwt.Claims)
 		if userClaims.Status != "active" {
 			m.logger.Warn("Inactive user attempting to access protected resource",
-				zap.Uint("user_id", userClaims.UserID),
+				zap.String("user_id", userClaims.UserID),
 				zap.String("status", string(userClaims.Status)),
 			)
 			c.JSON(http.StatusForbidden, dto.ErrorResponse{
@@ -160,7 +160,7 @@ func (m *AuthMiddleware) AdminOnly() gin.HandlerFunc {
 		// check user roles from the database or include roles in JWT claims
 		if userClaims.Email != "admin@example.com" {
 			m.logger.Warn("Non-admin user attempting to access admin resource",
-				zap.Uint("user_id", userClaims.UserID),
+				zap.String("user_id", userClaims.UserID),
 				zap.String("email", userClaims.Email),
 			)
 			c.JSON(http.StatusForbidden, dto.ErrorResponse{

@@ -95,9 +95,6 @@ coverage.txt
 # Air live reload
 tmp/
 
-# Wire generated files (if auto-generated)
-wire_gen.go
-
 # Swagger generated files
 docs/swagger.json
 docs/swagger.yaml

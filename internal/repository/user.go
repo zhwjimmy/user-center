@@ -16,19 +16,18 @@ import (
 
 type UserRepository interface {
 	Create(ctx context.Context, user *model.User) (*model.User, error)
-	GetByID(ctx context.Context, id uint) (*model.User, error)
-	GetByUUID(ctx context.Context, uuid string) (*model.User, error)
+	GetByID(ctx context.Context, id string) (*model.User, error)
 	GetByEmail(ctx context.Context, email string) (*model.User, error)
 	GetByUsername(ctx context.Context, username string) (*model.User, error)
 	Update(ctx context.Context, user *model.User) (*model.User, error)
-	Delete(ctx context.Context, id uint) error
+	Delete(ctx context.Context, id string) error
 	List(ctx context.Context, req *dto.UserListRequest) ([]*model.User, int64, error)
 	Search(ctx context.Context, term string, limit int) ([]*model.User, error)
-	GetByIDs(ctx context.Context, ids []uint) ([]*model.User, error)
+	GetByIDs(ctx context.Context, ids []string) ([]*model.User, error)
 	ExistsByEmail(ctx context.Context, email string) (bool, error)
 	ExistsByUsername(ctx context.Context, username string) (bool, error)
-	UpdateStatus(ctx context.Context, id uint, status model.UserStatus) error
-	UpdateActiveStatus(ctx context.Context, id uint, isActive bool) error
+	UpdateStatus(ctx context.Context, id string, status model.UserStatus) error
+	UpdateActiveStatus(ctx context.Context, id string, isActive bool) error
 	GetActiveUsers(ctx context.Context) ([]*model.User, error)
 	GetUsersByStatus(ctx context.Context, status model.UserStatus) ([]*model.User, error)
 	CountUsers(ctx context.Context) (int64, error)
@@ -57,25 +56,13 @@ func (r *userRepository) Create(ctx context.Context, user *model.User) (*model.U
 }
 
 // GetByID retrieves a user by ID
-func (r *userRepository) GetByID(ctx context.Context, id uint) (*model.User, error) {
+func (r *userRepository) GetByID(ctx context.Context, id string) (*model.User, error) {
 	var user model.User
-	if err := r.db.WithContext(ctx).First(&user, id).Error; err != nil {
+	if err := r.db.WithContext(ctx).First(&user, "id = ?", id).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, fmt.Errorf("user not found")
 		}
 		return nil, fmt.Errorf("failed to get user by ID: %w", err)
-	}
-	return &user, nil
-}
-
-// GetByUUID retrieves a user by UUID
-func (r *userRepository) GetByUUID(ctx context.Context, uuid string) (*model.User, error) {
-	var user model.User
-	if err := r.db.WithContext(ctx).Where("uuid = ?", uuid).First(&user).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, fmt.Errorf("user not found")
-		}
-		return nil, fmt.Errorf("failed to get user by UUID: %w", err)
 	}
 	return &user, nil
 }
@@ -113,8 +100,8 @@ func (r *userRepository) Update(ctx context.Context, user *model.User) (*model.U
 }
 
 // Delete soft deletes a user
-func (r *userRepository) Delete(ctx context.Context, id uint) error {
-	if err := r.db.WithContext(ctx).Delete(&model.User{}, id).Error; err != nil {
+func (r *userRepository) Delete(ctx context.Context, id string) error {
+	if err := r.db.WithContext(ctx).Delete(&model.User{}, "id = ?", id).Error; err != nil {
 		return fmt.Errorf("failed to delete user: %w", err)
 	}
 	return nil
@@ -136,9 +123,10 @@ func (r *userRepository) List(ctx context.Context, req *dto.UserListRequest) ([]
 		)
 	}
 
-	if req.Status != "" {
-		query = query.Where("status = ?", req.Status)
-	}
+	// Note: Status field is no longer used, we use is_active instead
+	// if req.Status != "" {
+	// 	query = query.Where("status = ?", req.Status)
+	// }
 
 	if req.IsActive != nil {
 		query = query.Where("is_active = ?", *req.IsActive)
@@ -183,7 +171,7 @@ func (r *userRepository) Search(ctx context.Context, term string, limit int) ([]
 }
 
 // GetByIDs retrieves multiple users by IDs
-func (r *userRepository) GetByIDs(ctx context.Context, ids []uint) ([]*model.User, error) {
+func (r *userRepository) GetByIDs(ctx context.Context, ids []string) ([]*model.User, error) {
 	var users []*model.User
 	if err := r.db.WithContext(ctx).Where("id IN ?", ids).Find(&users).Error; err != nil {
 		return nil, fmt.Errorf("failed to get users by IDs: %w", err)
@@ -210,15 +198,24 @@ func (r *userRepository) ExistsByUsername(ctx context.Context, username string) 
 }
 
 // UpdateStatus updates user status
-func (r *userRepository) UpdateStatus(ctx context.Context, id uint, status model.UserStatus) error {
-	if err := r.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", id).Update("status", status).Error; err != nil {
+func (r *userRepository) UpdateStatus(ctx context.Context, id string, status model.UserStatus) error {
+	// Since we don't have a status field anymore, we'll update is_active based on status
+	var isActive bool
+	switch status {
+	case model.UserStatusActive:
+		isActive = true
+	case model.UserStatusInactive, model.UserStatusSuspended, model.UserStatusDeleted:
+		isActive = false
+	}
+
+	if err := r.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", id).Update("is_active", isActive).Error; err != nil {
 		return fmt.Errorf("failed to update user status: %w", err)
 	}
 	return nil
 }
 
 // UpdateActiveStatus updates user active status
-func (r *userRepository) UpdateActiveStatus(ctx context.Context, id uint, isActive bool) error {
+func (r *userRepository) UpdateActiveStatus(ctx context.Context, id string, isActive bool) error {
 	if err := r.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", id).Update("is_active", isActive).Error; err != nil {
 		return fmt.Errorf("failed to update user active status: %w", err)
 	}
@@ -228,7 +225,7 @@ func (r *userRepository) UpdateActiveStatus(ctx context.Context, id uint, isActi
 // GetActiveUsers retrieves all active users
 func (r *userRepository) GetActiveUsers(ctx context.Context) ([]*model.User, error) {
 	var users []*model.User
-	if err := r.db.WithContext(ctx).Where("is_active = ? AND status = ?", true, model.UserStatusActive).Find(&users).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("is_active = ?", true).Find(&users).Error; err != nil {
 		return nil, fmt.Errorf("failed to get active users: %w", err)
 	}
 	return users, nil
@@ -237,7 +234,16 @@ func (r *userRepository) GetActiveUsers(ctx context.Context) ([]*model.User, err
 // GetUsersByStatus retrieves users by status
 func (r *userRepository) GetUsersByStatus(ctx context.Context, status model.UserStatus) ([]*model.User, error) {
 	var users []*model.User
-	if err := r.db.WithContext(ctx).Where("status = ?", status).Find(&users).Error; err != nil {
+	var isActive bool
+
+	switch status {
+	case model.UserStatusActive:
+		isActive = true
+	case model.UserStatusInactive, model.UserStatusSuspended, model.UserStatusDeleted:
+		isActive = false
+	}
+
+	if err := r.db.WithContext(ctx).Where("is_active = ?", isActive).Find(&users).Error; err != nil {
 		return nil, fmt.Errorf("failed to get users by status: %w", err)
 	}
 	return users, nil
@@ -255,7 +261,7 @@ func (r *userRepository) CountUsers(ctx context.Context) (int64, error) {
 // CountActiveUsers returns the number of active users
 func (r *userRepository) CountActiveUsers(ctx context.Context) (int64, error) {
 	var count int64
-	if err := r.db.WithContext(ctx).Model(&model.User{}).Where("is_active = ? AND status = ?", true, model.UserStatusActive).Count(&count).Error; err != nil {
+	if err := r.db.WithContext(ctx).Model(&model.User{}).Where("is_active = ?", true).Count(&count).Error; err != nil {
 		return 0, fmt.Errorf("failed to count active users: %w", err)
 	}
 	return count, nil

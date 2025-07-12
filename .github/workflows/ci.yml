@@ -17,16 +17,17 @@ jobs:
     
     services:
       postgres:
-        image: postgres:15
+        image: postgres:15-alpine
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_USER: postgres
           POSTGRES_DB: usercenter_test
+          POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
         options: >-
           --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+          --health-interval 3s
+          --health-timeout 2s
+          --health-retries 2
         ports:
           - 5432:5432
       
@@ -34,9 +35,9 @@ jobs:
         image: redis:7-alpine
         options: >-
           --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+          --health-interval 3s
+          --health-timeout 2s
+          --health-retries 2
         ports:
           - 6379:6379
 
@@ -53,73 +54,69 @@ jobs:
           **/go.sum
           go.mod
 
-    - name: Cache Go tools
+    # 优化缓存策略 - 合并工具和依赖缓存
+    - name: Cache Go build and mod cache
       uses: actions/cache@v4
       with:
         path: |
-          $HOME/go/bin
-          $HOME/.cache/go-build
-        key: ${{ runner.os }}-go-tools-${{ hashFiles('go.mod') }}
+          ~/.cache/go-build
+          ~/.modcache
+        key: ${{ runner.os }}-go-${{ hashFiles('go.sum') }}
         restore-keys: |
-          ${{ runner.os }}-go-tools-
+          ${{ runner.os }}-go-
 
-    - name: Ensure go tools directory exists
-      run: |
-        mkdir -p $HOME/go/bin
-        echo "Go tools directory created: $HOME/go/bin"
+    - name: Set custom GOMODCACHE
+      run: go env -w GOMODCACHE=$HOME/.modcache
 
-    - name: Install tools
+    # 并行安装工具和依赖
+    - name: Install tools and dependencies
       run: |
-        echo "Installing development tools..."
+        echo "Installing development tools and dependencies..."
         
-        # Always install tools to ensure they exist in $HOME/go/bin
-        echo "Installing tools to $HOME/go/bin..."
-        go install github.com/golang/mock/mockgen@v1.6.0
-        go install github.com/axw/gocov/gocov@latest
-        go install github.com/AlekSi/gocov-xml@latest
-        go install github.com/google/wire/cmd/wire@v0.6.0
+        # 并行安装工具
+        (
+          echo "Installing tools..."
+          go install github.com/golang/mock/mockgen@v1.6.0 &
+          go install github.com/axw/gocov/gocov@latest &
+          go install github.com/AlekSi/gocov-xml@latest &
+          go install github.com/google/wire/cmd/wire@v0.6.0 &
+          wait
+        )
         
-        echo "Tools installed successfully"
+        # 并行下载依赖
+        (
+          echo "Downloading dependencies..."
+          go mod download &
+          go mod tidy &
+          wait
+        )
+        
+        echo "Tools and dependencies installed successfully"
         echo "Installed tools:"
         ls -la $HOME/go/bin/
         
         # Add tools to PATH
         echo "$HOME/go/bin" >> $GITHUB_PATH
 
-    - name: Generate mocks
-      run: make mock
-
-    - name: Generate Wire code
-      run: make wire
-
-    - name: Install dependencies
+    # 并行生成代码
+    - name: Generate code
       run: |
-        echo "Current directory: $(pwd)"
-        echo "Go version: $(go version)"
-        echo "Downloading dependencies..."
-        go mod download
-        echo "Running go mod tidy..."
-        go mod tidy
-        echo "Verifying modules..."
-        go mod verify
-        echo "Dependencies installed successfully"
+        echo "Generating mocks and Wire code..."
+        make mock &
+        make wire &
+        wait
+        echo "Code generation completed"
 
     - name: Verify dependencies
       run: |
         go build -o /dev/null ./cmd/usercenter
 
-    # - name: Run linter
-    #   run: make lint
-
-    # - name: Run security checks
-    #   run: make security
-
     - name: Run tests with coverage
       run: |
         # Create coverage directory
         mkdir -p coverage
-        # Run tests with coverage in parallel
-        go test -v -coverprofile=coverage/coverage.out -covermode=atomic -p=4 ./...
+        # Run tests with coverage in parallel (increased parallelism)
+        go test -v -coverprofile=coverage/coverage.out -covermode=atomic -p=8 ./...
         # Generate XML coverage report
         gocov convert coverage/coverage.out | gocov-xml > coverage/coverage.xml
         echo "XML coverage report generated: coverage/coverage.xml"
@@ -135,55 +132,84 @@ jobs:
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v5
       with:
-        file: ./coverage/coverage.xml
+        files: ./coverage/coverage.xml
         flags: unittests
         name: codecov-umbrella
         fail_ci_if_error: false
 
-  # build:
-  #   name: Build
-  #   runs-on: ubuntu-latest
-  #   needs: test
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: test
 
-  #   steps:
-  #   - name: Checkout code
-  #     uses: actions/checkout@v4
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-  #   - name: Set up Go
-  #     uses: actions/setup-go@v5
-  #     with:
-  #       go-version: ${{ env.GO_VERSION }}
-  #       cache: true
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ env.GO_VERSION }}
+        cache: true
 
-  #   - name: Build for multiple platforms
-  #     run: make build-all
+    - name: Install Wire tool
+      run: |
+        go install github.com/google/wire/cmd/wire@v0.6.0
+        echo "$HOME/go/bin" >> $GITHUB_PATH
 
-  #   - name: Upload build artifacts
-  #     uses: actions/upload-artifact@v4
-  #     with:
-  #       name: binaries
-  #       path: bin/
-  #       retention-days: 30
+    - name: Generate Wire code
+      run: |
+        echo "Generating Wire dependency injection code..."
+        wire ./cmd/usercenter
 
-  # docker:
-  #   name: Docker Build
-  #   runs-on: ubuntu-latest
-  #   needs: test
+    - name: Build application
+      run: make build
 
-  #   steps:
-  #   - name: Checkout code
-  #     uses: actions/checkout@v4
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: binaries
+        path: bin/
+        retention-days: 30
 
-  #   - name: Set up Docker Buildx
-  #     uses: docker/setup-buildx-action@v3
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: test
 
-  #   - name: Build Docker image
-  #     run: make docker-build
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-  #   - name: Upload Docker image
-  #     uses: actions/upload-artifact@v4
-  #     with:
-  #       name: docker-image
-  #       path: |
-  #         usercenter:latest
-  #       retention-days: 30 
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    # 缓存 Docker 层
+    - name: Cache Docker layers
+      uses: actions/cache@v4
+      with:
+        path: /tmp/.buildx-cache
+        key: ${{ runner.os }}-buildx-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-buildx-
+
+    - name: Build Docker image
+      run: |
+        docker buildx build \
+          --cache-from type=local,src=/tmp/.buildx-cache \
+          --cache-to type=local,dest=/tmp/.buildx-cache,mode=max \
+          --tag usercenter:latest \
+          --file Dockerfile \
+          .
+
+    # Docker 镜像构建完成，如需保存为 artifact 可取消注释以下步骤
+    # - name: Save Docker image
+    #   run: |
+    #     docker save usercenter:latest -o usercenter-latest.tar
+    #
+    # - name: Upload Docker image
+    #   uses: actions/upload-artifact@v4
+    #   with:
+    #     name: docker-image
+    #     path: usercenter-latest.tar
+    #     retention-days: 30 

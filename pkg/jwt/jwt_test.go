@@ -7,13 +7,13 @@ import (
 
 // MockUser implements the User interface for testing
 type MockUser struct {
-	ID       uint
+	ID       string
 	Username string
 	Email    string
 	Status   string
 }
 
-func (m *MockUser) GetID() uint {
+func (m *MockUser) GetID() string {
 	return m.ID
 }
 
@@ -37,7 +37,7 @@ func TestJWT_GenerateAndValidateToken(t *testing.T) {
 	jwtManager := NewJWT(secret, issuer, expiry)
 
 	user := &MockUser{
-		ID:       1,
+		ID:       "test-user-id",
 		Username: "testuser",
 		Email:    "test@example.com",
 		Status:   "active",
@@ -61,7 +61,7 @@ func TestJWT_GenerateAndValidateToken(t *testing.T) {
 
 	// Verify claims
 	if claims.UserID != user.GetID() {
-		t.Errorf("Expected UserID %d, got %d", user.GetID(), claims.UserID)
+		t.Errorf("Expected UserID %s, got %s", user.GetID(), claims.UserID)
 	}
 
 	if claims.Username != user.GetUsername() {

@@ -52,10 +52,11 @@ UserCenter is a production-ready user management service built with Go, providin
 
 ### User Management
 - User registration with email verification
-- User profile management
+- User profile management with UUID-based identification
 - Account status management (active, inactive, suspended)
 - Soft delete support
 - Bulk user operations
+- UUID-based user identification for enhanced security
 
 ### API Features
 - RESTful API design
@@ -134,59 +135,93 @@ go install github.com/axw/gocov/gocov@latest
 go install github.com/AlekSi/gocov-xml@latest
 ```
 
-## 🚀 Installation
+## 🚀 Quick Start
 
-### 1. Clone the Repository
+### Option 1: Using Docker Compose (Recommended)
 ```bash
+# 1. Clone the repository
 git clone <repository-url>
 cd user-center
-```
 
-### 2. Install Dependencies
-```bash
-go mod download
-```
+# 2. Start all dependencies with Docker Compose
+docker-compose up -d
 
-### 3. Configure Environment
-```bash
-# Copy configuration file
-cp configs/config.example.yaml configs/config.yaml
-
-# Edit configuration
-vim configs/config.yaml
-```
-
-### 4. Initialize Database
-```bash
-# Run database migrations
+# 3. Run database migrations
 make migrate-up
 
-# Or manually
-goose -dir migrations postgres "user=username password=password dbname=usercenter sslmode=disable" up
-```
-
-### 5. Generate Wire Dependency Injection Code
-```bash
+# 4. Generate Wire dependency injection code
 make wire
-```
 
-### 6. Generate Swagger Documentation
-```bash
+# 5. Generate Swagger documentation
 make swagger
-```
 
-### 7. Run the Service
-```bash
-# Development environment
+# 6. Start the service
 make run
-
-# Or run directly
-go run cmd/usercenter/main.go
-
-# Production environment
-make build
-./bin/usercenter
 ```
+
+### Option 2: Manual Setup
+```bash
+# 1. Clone the repository
+git clone <repository-url>
+cd user-center
+
+# 2. Install dependencies
+go mod download
+
+# 3. Configure environment
+cp configs/config.example.yaml configs/config.yaml
+# Edit configs/config.yaml with your database settings
+
+# 4. Start dependencies (PostgreSQL, MongoDB, Redis, Kafka)
+# Make sure you have these services running locally
+
+# 5. Run database migrations
+make migrate-up
+
+# 6. Generate Wire dependency injection code
+make wire
+
+# 7. Generate Swagger documentation
+make swagger
+
+# 8. Start the service
+make run
+```
+
+### Verify Installation
+```bash
+# Check service health
+curl http://localhost:8080/health
+
+# Access Swagger documentation
+open http://localhost:8080/swagger/index.html
+```
+
+### Troubleshooting
+
+#### Database Migration Issues
+If you encounter "failed to migrate database: insufficient arguments" error:
+
+1. **Ensure pgcrypto extension is enabled**:
+   ```sql
+   CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+   ```
+
+2. **Clean and recreate database tables**:
+   ```bash
+   docker exec -i usercenter-postgres psql -U postgres -d usercenter -c 'DROP TABLE IF EXISTS users CASCADE;'
+   make migrate-up
+   ```
+
+3. **Check database connection**:
+   ```bash
+   docker-compose ps
+   ```
+
+#### Service Startup Issues
+- Ensure all dependencies are running: `docker-compose ps`
+- Check logs: `docker-compose logs -f`
+- Verify configuration: `configs/config.yaml`
 
 ## ⚙️ Configuration
 
