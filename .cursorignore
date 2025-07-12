@@ -133,8 +133,6 @@ data/db/
 # PostgreSQL data files
 pgdata/
 
-# Git files (if needed for some reason)
-.git/
 # Documentation build files
 site/
 _site/
