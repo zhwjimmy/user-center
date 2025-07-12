@@ -6,8 +6,6 @@
 *.dylib
 
 # Go build artifacts
-usercenter
-cmd/usercenter/usercenter
 main
 *.test
 *.out
@@ -19,7 +17,6 @@ main
 # Output of the go coverage tool
 coverage.txt
 *.cov
-go.sum
 coverage.out
 coverage.html
 coverage.xml
@@ -307,7 +304,6 @@ ENV/
 /.config
 /coverage/
 /InstalledFiles
-/pkg/
 /spec/reports/
 /test/tmp/
 /test/version_tmp/
