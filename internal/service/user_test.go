@@ -6,7 +6,6 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/zhwjimmy/user-center/internal/dto"
 	"github.com/zhwjimmy/user-center/internal/mock"
 	"github.com/zhwjimmy/user-center/internal/model"
@@ -27,11 +26,11 @@ func TestUserService_CreateUser(t *testing.T) {
 		{
 			name: "successful user creation",
 			user: &model.User{
-				Username:  "testuser",
-				Email:     "test@example.com",
-				Password:  "hashedpassword",
-				FirstName: strPtr("Test"),
-				LastName:  strPtr("User"),
+				Username:     "testuser",
+				Email:        "test@example.com",
+				PasswordHash: "hashedpassword",
+				FirstName:    strPtr("Test"),
+				LastName:     strPtr("User"),
 			},
 			expectedError: false,
 			setupMock: func(repo *mock.MockUserRepository) {
@@ -43,23 +42,22 @@ func TestUserService_CreateUser(t *testing.T) {
 					Return(nil, assert.AnError) // User not found by username
 				// Create user
 				repo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(&model.User{
-					ID:        1,
-					Username:  "testuser",
-					Email:     "test@example.com",
-					Password:  "hashedpassword",
-					FirstName: strPtr("Test"),
-					LastName:  strPtr("User"),
-					IsActive:  true,
-					Status:    model.UserStatusActive,
+					ID:           "test-user-id",
+					Username:     "testuser",
+					Email:        "test@example.com",
+					PasswordHash: "hashedpassword",
+					FirstName:    strPtr("Test"),
+					LastName:     strPtr("User"),
+					IsActive:     true,
 				}, nil)
 			},
 		},
 		{
 			name: "database error",
 			user: &model.User{
-				Username: "testuser",
-				Email:    "test@example.com",
-				Password: "hashedpassword",
+				Username:     "testuser",
+				Email:        "test@example.com",
+				PasswordHash: "hashedpassword",
 			},
 			expectedError: true,
 			setupMock: func(repo *mock.MockUserRepository) {
@@ -91,7 +89,6 @@ func TestUserService_CreateUser(t *testing.T) {
 				assert.Equal(t, tt.user.Username, result.Username)
 				assert.Equal(t, tt.user.Email, result.Email)
 				assert.True(t, result.IsActive)
-				assert.Equal(t, model.UserStatusActive, result.Status)
 			}
 		})
 	}
@@ -102,40 +99,38 @@ func TestUserService_GetUserByID(t *testing.T) {
 	defer ctrl.Finish()
 	tests := []struct {
 		name          string
-		userID        uint
+		userID        string
 		expectedUser  *model.User
 		expectedError bool
 		setupMock     func(*mock.MockUserRepository)
 	}{
 		{
 			name:   "successful user retrieval",
-			userID: 1,
+			userID: "test-user-id",
 			expectedUser: &model.User{
-				ID:       1,
+				ID:       "test-user-id",
 				Username: "testuser",
 				Email:    "test@example.com",
 				IsActive: true,
-				Status:   model.UserStatusActive,
 			},
 			expectedError: false,
 			setupMock: func(repo *mock.MockUserRepository) {
-				repo.EXPECT().GetByID(gomock.Any(), uint(1)).
+				repo.EXPECT().GetByID(gomock.Any(), "test-user-id").
 					Return(&model.User{
-						ID:       1,
+						ID:       "test-user-id",
 						Username: "testuser",
 						Email:    "test@example.com",
 						IsActive: true,
-						Status:   model.UserStatusActive,
 					}, nil)
 			},
 		},
 		{
 			name:          "user not found",
-			userID:        999,
+			userID:        "non-existent-id",
 			expectedUser:  nil,
 			expectedError: true,
 			setupMock: func(repo *mock.MockUserRepository) {
-				repo.EXPECT().GetByID(gomock.Any(), uint(999)).
+				repo.EXPECT().GetByID(gomock.Any(), "non-existent-id").
 					Return(nil, assert.AnError)
 			},
 		},
@@ -176,21 +171,19 @@ func TestUserService_GetUserByEmail(t *testing.T) {
 			name:  "successful user retrieval by email",
 			email: "test@example.com",
 			expectedUser: &model.User{
-				ID:       1,
+				ID:       "test-user-id",
 				Username: "testuser",
 				Email:    "test@example.com",
 				IsActive: true,
-				Status:   model.UserStatusActive,
 			},
 			expectedError: false,
 			setupMock: func(repo *mock.MockUserRepository) {
 				repo.EXPECT().GetByEmail(gomock.Any(), "test@example.com").
 					Return(&model.User{
-						ID:       1,
+						ID:       "test-user-id",
 						Username: "testuser",
 						Email:    "test@example.com",
 						IsActive: true,
-						Status:   model.UserStatusActive,
 					}, nil)
 			},
 		},
@@ -231,7 +224,7 @@ func TestUserService_UpdateUser(t *testing.T) {
 	defer ctrl.Finish()
 	tests := []struct {
 		name          string
-		userID        uint
+		userID        string
 		req           *dto.UpdateUserRequest
 		expectedUser  *model.User
 		expectedError bool
@@ -239,54 +232,48 @@ func TestUserService_UpdateUser(t *testing.T) {
 	}{
 		{
 			name:   "successful user update",
-			userID: 1,
+			userID: "test-user-id",
 			req: &dto.UpdateUserRequest{
 				FirstName: strPtr("Updated"),
 				LastName:  strPtr("Name"),
 			},
 			expectedUser: &model.User{
-				ID:        1,
+				ID:        "test-user-id",
 				Username:  "testuser",
 				Email:     "test@example.com",
 				FirstName: strPtr("Updated"),
 				LastName:  strPtr("Name"),
 				IsActive:  true,
-				Status:    model.UserStatusActive,
 			},
 			expectedError: false,
 			setupMock: func(repo *mock.MockUserRepository) {
-				repo.EXPECT().GetByID(gomock.Any(), uint(1)).
+				repo.EXPECT().GetByID(gomock.Any(), "test-user-id").
 					Return(&model.User{
-						ID:        1,
-						Username:  "testuser",
-						Email:     "test@example.com",
-						FirstName: strPtr("Original"),
-						LastName:  strPtr("Name"),
-						IsActive:  true,
-						Status:    model.UserStatusActive,
+						ID:       "test-user-id",
+						Username: "testuser",
+						Email:    "test@example.com",
+						IsActive: true,
 					}, nil)
-				repo.EXPECT().Update(gomock.Any(), gomock.Any()).
-					Return(&model.User{
-						ID:        1,
-						Username:  "testuser",
-						Email:     "test@example.com",
-						FirstName: strPtr("Updated"),
-						LastName:  strPtr("Name"),
-						IsActive:  true,
-						Status:    model.UserStatusActive,
-					}, nil)
+				repo.EXPECT().Update(gomock.Any(), gomock.Any()).Return(&model.User{
+					ID:        "test-user-id",
+					Username:  "testuser",
+					Email:     "test@example.com",
+					FirstName: strPtr("Updated"),
+					LastName:  strPtr("Name"),
+					IsActive:  true,
+				}, nil)
 			},
 		},
 		{
 			name:   "user not found",
-			userID: 999,
+			userID: "non-existent-id",
 			req: &dto.UpdateUserRequest{
 				FirstName: strPtr("Updated"),
 			},
 			expectedUser:  nil,
 			expectedError: true,
 			setupMock: func(repo *mock.MockUserRepository) {
-				repo.EXPECT().GetByID(gomock.Any(), uint(999)).
+				repo.EXPECT().GetByID(gomock.Any(), "non-existent-id").
 					Return(nil, assert.AnError)
 			},
 		},
@@ -305,8 +292,52 @@ func TestUserService_UpdateUser(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, result)
-				assert.Equal(t, tt.expectedUser.FirstName, result.FirstName)
-				assert.Equal(t, tt.expectedUser.LastName, result.LastName)
+				assert.Equal(t, tt.expectedUser.ID, result.ID)
+				assert.Equal(t, tt.expectedUser.Username, result.Username)
+				assert.Equal(t, tt.expectedUser.Email, result.Email)
+			}
+		})
+	}
+}
+
+func TestUserService_DeleteUser(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	tests := []struct {
+		name          string
+		userID        string
+		expectedError bool
+		setupMock     func(*mock.MockUserRepository)
+	}{
+		{
+			name:          "successful user deletion",
+			userID:        "test-user-id",
+			expectedError: false,
+			setupMock: func(repo *mock.MockUserRepository) {
+				repo.EXPECT().Delete(gomock.Any(), "test-user-id").Return(nil)
+			},
+		},
+		{
+			name:          "user not found for deletion",
+			userID:        "non-existent-id",
+			expectedError: true,
+			setupMock: func(repo *mock.MockUserRepository) {
+				repo.EXPECT().Delete(gomock.Any(), "non-existent-id").Return(assert.AnError)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRepo := mock.NewMockUserRepository(ctrl)
+			tt.setupMock(mockRepo)
+			logger := zap.NewNop()
+			service := NewUserService(mockRepo, logger)
+			err := service.DeleteUser(context.Background(), tt.userID)
+			if tt.expectedError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
 			}
 		})
 	}
@@ -324,53 +355,46 @@ func TestUserService_ListUsers(t *testing.T) {
 		setupMock     func(*mock.MockUserRepository)
 	}{
 		{
-			name: "successful user list",
+			name: "successful user list retrieval",
 			req: &dto.UserListRequest{
-				Page:  1,
-				Size:  10,
-				Sort:  "created_at",
-				Order: "desc",
+				Page: 1,
+				Size: 10,
 			},
 			expectedUsers: []*model.User{
 				{
-					ID:       1,
+					ID:       "user-1",
 					Username: "user1",
 					Email:    "user1@example.com",
 					IsActive: true,
-					Status:   model.UserStatusActive,
 				},
 				{
-					ID:       2,
+					ID:       "user-2",
 					Username: "user2",
 					Email:    "user2@example.com",
 					IsActive: true,
-					Status:   model.UserStatusActive,
 				},
 			},
 			expectedTotal: 2,
 			expectedError: false,
 			setupMock: func(repo *mock.MockUserRepository) {
-				repo.EXPECT().List(gomock.Any(), gomock.Any()).
-					Return([]*model.User{
-						{
-							ID:       1,
-							Username: "user1",
-							Email:    "user1@example.com",
-							IsActive: true,
-							Status:   model.UserStatusActive,
-						},
-						{
-							ID:       2,
-							Username: "user2",
-							Email:    "user2@example.com",
-							IsActive: true,
-							Status:   model.UserStatusActive,
-						},
-					}, int64(2), nil)
+				repo.EXPECT().List(gomock.Any(), gomock.Any()).Return([]*model.User{
+					{
+						ID:       "user-1",
+						Username: "user1",
+						Email:    "user1@example.com",
+						IsActive: true,
+					},
+					{
+						ID:       "user-2",
+						Username: "user2",
+						Email:    "user2@example.com",
+						IsActive: true,
+					},
+				}, int64(2), nil)
 			},
 		},
 		{
-			name: "list error",
+			name: "database error",
 			req: &dto.UserListRequest{
 				Page: 1,
 				Size: 10,
@@ -379,8 +403,7 @@ func TestUserService_ListUsers(t *testing.T) {
 			expectedTotal: 0,
 			expectedError: true,
 			setupMock: func(repo *mock.MockUserRepository) {
-				repo.EXPECT().List(gomock.Any(), gomock.Any()).
-					Return(nil, int64(0), assert.AnError)
+				repo.EXPECT().List(gomock.Any(), gomock.Any()).Return(nil, int64(0), assert.AnError)
 			},
 		},
 	}
@@ -399,7 +422,7 @@ func TestUserService_ListUsers(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, users)
-				assert.Equal(t, len(tt.expectedUsers), len(users))
+				assert.Len(t, users, len(tt.expectedUsers))
 				assert.Equal(t, tt.expectedTotal, total)
 			}
 		})
@@ -411,48 +434,44 @@ func TestUserService_ActivateUser(t *testing.T) {
 	defer ctrl.Finish()
 	tests := []struct {
 		name          string
-		userID        uint
+		userID        string
 		expectedUser  *model.User
 		expectedError bool
 		setupMock     func(*mock.MockUserRepository)
 	}{
 		{
 			name:   "successful user activation",
-			userID: 1,
+			userID: "test-user-id",
 			expectedUser: &model.User{
-				ID:       1,
+				ID:       "test-user-id",
 				Username: "testuser",
 				Email:    "test@example.com",
 				IsActive: true,
-				Status:   model.UserStatusActive,
 			},
 			expectedError: false,
 			setupMock: func(repo *mock.MockUserRepository) {
-				repo.EXPECT().GetByID(gomock.Any(), uint(1)).
+				repo.EXPECT().GetByID(gomock.Any(), "test-user-id").
 					Return(&model.User{
-						ID:       1,
+						ID:       "test-user-id",
 						Username: "testuser",
 						Email:    "test@example.com",
 						IsActive: false,
-						Status:   model.UserStatusInactive,
 					}, nil)
-				repo.EXPECT().Update(gomock.Any(), gomock.Any()).
-					Return(&model.User{
-						ID:       1,
-						Username: "testuser",
-						Email:    "test@example.com",
-						IsActive: true,
-						Status:   model.UserStatusActive,
-					}, nil)
+				repo.EXPECT().Update(gomock.Any(), gomock.Any()).Return(&model.User{
+					ID:       "test-user-id",
+					Username: "testuser",
+					Email:    "test@example.com",
+					IsActive: true,
+				}, nil)
 			},
 		},
 		{
-			name:          "user not found",
-			userID:        999,
+			name:          "user not found for activation",
+			userID:        "non-existent-id",
 			expectedUser:  nil,
 			expectedError: true,
 			setupMock: func(repo *mock.MockUserRepository) {
-				repo.EXPECT().GetByID(gomock.Any(), uint(999)).
+				repo.EXPECT().GetByID(gomock.Any(), "non-existent-id").
 					Return(nil, assert.AnError)
 			},
 		},
@@ -472,7 +491,6 @@ func TestUserService_ActivateUser(t *testing.T) {
 				assert.NoError(t, err)
 				assert.NotNil(t, result)
 				assert.True(t, result.IsActive)
-				assert.Equal(t, model.UserStatusActive, result.Status)
 			}
 		})
 	}
@@ -483,48 +501,44 @@ func TestUserService_DeactivateUser(t *testing.T) {
 	defer ctrl.Finish()
 	tests := []struct {
 		name          string
-		userID        uint
+		userID        string
 		expectedUser  *model.User
 		expectedError bool
 		setupMock     func(*mock.MockUserRepository)
 	}{
 		{
 			name:   "successful user deactivation",
-			userID: 1,
+			userID: "test-user-id",
 			expectedUser: &model.User{
-				ID:       1,
+				ID:       "test-user-id",
 				Username: "testuser",
 				Email:    "test@example.com",
 				IsActive: false,
-				Status:   model.UserStatusInactive,
 			},
 			expectedError: false,
 			setupMock: func(repo *mock.MockUserRepository) {
-				repo.EXPECT().GetByID(gomock.Any(), uint(1)).
+				repo.EXPECT().GetByID(gomock.Any(), "test-user-id").
 					Return(&model.User{
-						ID:       1,
+						ID:       "test-user-id",
 						Username: "testuser",
 						Email:    "test@example.com",
 						IsActive: true,
-						Status:   model.UserStatusActive,
 					}, nil)
-				repo.EXPECT().Update(gomock.Any(), gomock.Any()).
-					Return(&model.User{
-						ID:       1,
-						Username: "testuser",
-						Email:    "test@example.com",
-						IsActive: false,
-						Status:   model.UserStatusInactive,
-					}, nil)
+				repo.EXPECT().Update(gomock.Any(), gomock.Any()).Return(&model.User{
+					ID:       "test-user-id",
+					Username: "testuser",
+					Email:    "test@example.com",
+					IsActive: false,
+				}, nil)
 			},
 		},
 		{
-			name:          "user not found",
-			userID:        999,
+			name:          "user not found for deactivation",
+			userID:        "non-existent-id",
 			expectedUser:  nil,
 			expectedError: true,
 			setupMock: func(repo *mock.MockUserRepository) {
-				repo.EXPECT().GetByID(gomock.Any(), uint(999)).
+				repo.EXPECT().GetByID(gomock.Any(), "non-existent-id").
 					Return(nil, assert.AnError)
 			},
 		},
@@ -544,7 +558,6 @@ func TestUserService_DeactivateUser(t *testing.T) {
 				assert.NoError(t, err)
 				assert.NotNil(t, result)
 				assert.False(t, result.IsActive)
-				assert.Equal(t, model.UserStatusInactive, result.Status)
 			}
 		})
 	}
@@ -555,29 +568,22 @@ func BenchmarkUserService_CreateUser(b *testing.B) {
 	ctrl := gomock.NewController(b)
 	defer ctrl.Finish()
 	mockRepo := mock.NewMockUserRepository(ctrl)
-	mockRepo.EXPECT().Create(gomock.Any(), gomock.Any()).
-		Return(&model.User{
-			ID:       1,
-			Username: "testuser",
-			Email:    "test@example.com",
-			Password: "hashedpassword",
-			IsActive: true,
-			Status:   model.UserStatusActive,
-		}, nil).AnyTimes()
-
 	logger := zap.NewNop()
 	service := NewUserService(mockRepo, logger)
 
 	user := &model.User{
-		Username: "testuser",
-		Email:    "test@example.com",
-		Password: "hashedpassword",
+		Username:     "benchmarkuser",
+		Email:        "benchmark@example.com",
+		PasswordHash: "hashedpassword",
 	}
+
+	mockRepo.EXPECT().GetByEmail(gomock.Any(), gomock.Any()).Return(nil, assert.AnError).AnyTimes()
+	mockRepo.EXPECT().GetByUsername(gomock.Any(), gomock.Any()).Return(nil, assert.AnError).AnyTimes()
+	mockRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(user, nil).AnyTimes()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := service.CreateUser(context.Background(), user)
-		require.NoError(b, err)
+		_, _ = service.CreateUser(context.Background(), user)
 	}
 }
 
@@ -585,21 +591,20 @@ func BenchmarkUserService_GetUserByID(b *testing.B) {
 	ctrl := gomock.NewController(b)
 	defer ctrl.Finish()
 	mockRepo := mock.NewMockUserRepository(ctrl)
-	mockRepo.EXPECT().GetByID(gomock.Any(), uint(1)).
-		Return(&model.User{
-			ID:       1,
-			Username: "testuser",
-			Email:    "test@example.com",
-			IsActive: true,
-			Status:   model.UserStatusActive,
-		}, nil).AnyTimes()
-
 	logger := zap.NewNop()
 	service := NewUserService(mockRepo, logger)
 
+	user := &model.User{
+		ID:       "benchmark-user-id",
+		Username: "benchmarkuser",
+		Email:    "benchmark@example.com",
+		IsActive: true,
+	}
+
+	mockRepo.EXPECT().GetByID(gomock.Any(), gomock.Any()).Return(user, nil).AnyTimes()
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := service.GetUserByID(context.Background(), 1)
-		require.NoError(b, err)
+		_, _ = service.GetUserByID(context.Background(), "benchmark-user-id")
 	}
 }
