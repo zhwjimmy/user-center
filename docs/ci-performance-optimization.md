@@ -174,6 +174,21 @@ gh run view <run-id> --log
 
 ## 🛠️ 故障排除
 
+### Codecov 配置问题
+```yaml
+# 错误配置 (v3 版本)
+- name: Upload coverage to Codecov
+  uses: codecov/codecov-action@v3
+  with:
+    file: ./coverage/coverage.xml  # ❌ 已废弃
+
+# 正确配置 (v3 版本)
+- name: Upload coverage to Codecov
+  uses: codecov/codecov-action@v3
+  with:
+    files: ./coverage/coverage.xml  # ✅ 新参数名
+```
+
 ### 缓存问题
 ```bash
 # 清除缓存
