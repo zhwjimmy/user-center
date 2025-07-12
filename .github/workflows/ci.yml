@@ -55,17 +55,18 @@ jobs:
           go.mod
 
     # 优化缓存策略 - 合并工具和依赖缓存
-    - name: Cache Go tools and dependencies
+    - name: Cache Go build and mod cache
       uses: actions/cache@v4
       with:
         path: |
-          $HOME/go/bin
-          $HOME/.cache/go-build
-          ~/go/pkg/mod
-        key: ${{ runner.os }}-go-${{ hashFiles('go.mod', 'go.sum', 'Makefile') }}
+          ~/.cache/go-build
+          ~/.modcache
+        key: ${{ runner.os }}-go-${{ hashFiles('go.sum') }}
         restore-keys: |
-          ${{ runner.os }}-go-${{ hashFiles('go.mod', 'go.sum') }}-
           ${{ runner.os }}-go-
+
+    - name: Set custom GOMODCACHE
+      run: go env -w GOMODCACHE=$HOME/.modcache
 
     # 并行安装工具和依赖
     - name: Install tools and dependencies
