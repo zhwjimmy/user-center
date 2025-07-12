@@ -1,0 +1,228 @@
+# Dependency Injection with Wire
+
+## Wire Configuration
+
+### 1. Wire File Structure
+- Place `wire.go` in the main package directory (e.g., `cmd/usercenter/wire.go`)
+- Use `//go:build wireinject` build tag
+- Define provider functions for each dependency
+- Create `InitializeApp()` function for application setup
+
+### 2. Wire File Template
+```go
+//go:build wireinject
+// +build wireinject
+
+package main
+
+import (
+	"github.com/google/wire"
+	// Import your packages
+)
+
+// InitializeApp creates a new application instance
+func InitializeApp() (*server.Server, error) {
+	wire.Build(
+		// Configuration
+		config.Load,
+		
+		// Logger
+		provideLogger,
+		
+		// Database connections
+		database.NewPostgreSQL,
+		provideGormDB,
+		
+		// Repositories
+		repository.NewUserRepository,
+		
+		// Services
+		service.NewUserService,
+		
+		// Handlers
+		handler.NewUserHandler,
+		
+		// Server
+		provideServer,
+	)
+	return &server.Server{}, nil
+}
+```
+
+### 3. Provider Functions
+```go
+// provideLogger creates a new logger instance
+func provideLogger(cfg *config.Config) (*zap.Logger, error) {
+	config := zap.NewProductionConfig()
+	level, err := zapcore.ParseLevel(cfg.Logging.Level)
+	if err != nil {
+		level = zapcore.InfoLevel
+	}
+	config.Level = zap.NewAtomicLevelAt(level)
+	return config.Build()
+}
+
+// provideGormDB extracts *gorm.DB from *database.PostgreSQL
+func provideGormDB(pg *database.PostgreSQL) *gorm.DB {
+	return pg.DB
+}
+```
+
+## Main Application Setup
+
+### 1. Main Function Structure
+```go
+func main() {
+	// Initialize application using wire
+	app, err := InitializeApp()
+	if err != nil {
+		fmt.Printf("Failed to initialize application: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Get logger from server
+	log := app.GetLogger()
+
+	log.Info("Starting UserCenter application",
+		zap.String("version", Version),
+	)
+
+	// Start server in a goroutine
+	go func() {
+		if err := app.Start(); err != nil {
+			log.Fatal("Failed to start server", zap.Error(err))
+		}
+	}()
+
+	// Wait for interrupt signal
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	// Graceful shutdown
+	ctx, cancel := context.WithTimeout(context.Background(), app.GetShutdownTimeout())
+	defer cancel()
+
+	if err := app.Shutdown(ctx); err != nil {
+		log.Error("Server forced to shutdown", zap.Error(err))
+	}
+}
+```
+
+## CI/CD Integration
+
+### 1. Wire Code Generation
+- Install Wire tool in CI: `go install github.com/google/wire/cmd/wire@latest`
+- Generate code before dependency resolution: `make wire`
+- Keep `wire_gen.go` out of version control (in `.gitignore`)
+
+### 2. Makefile Integration
+```makefile
+.PHONY: wire
+wire: ## Generate Wire dependency injection code
+	@echo "Generating Wire code..."
+	wire ./cmd/usercenter
+```
+
+### 3. Common Issues and Solutions
+
+#### Issue: `undefined: InitializeApp`
+- **Cause**: Wire code not generated
+- **Solution**: Run `make wire` before building
+- **Prevention**: Generate in CI before dependency resolution
+
+#### Issue: Circular dependencies
+- **Cause**: Providers depend on each other
+- **Solution**: Use provider sets or restructure dependencies
+- **Example**:
+```go
+var UserSet = wire.NewSet(
+	repository.NewUserRepository,
+	service.NewUserService,
+	handler.NewUserHandler,
+)
+```
+
+## Best Practices
+
+### 1. Provider Organization
+- Group related providers together
+- Use descriptive provider function names
+- Keep providers simple and focused
+- Use provider sets for complex modules
+
+### 2. Error Handling
+- Return errors from providers when appropriate
+- Handle initialization errors in main
+- Use proper error wrapping
+
+### 3. Configuration
+- Pass configuration to providers
+- Use environment-specific configs
+- Validate configuration in providers
+
+### 4. Testing
+- Use Wire for test setup
+- Create test-specific providers
+- Mock dependencies in tests
+
+## Advanced Patterns
+
+### 1. Provider Sets
+```go
+var DatabaseSet = wire.NewSet(
+	database.NewPostgreSQL,
+	provideGormDB,
+)
+
+var ServiceSet = wire.NewSet(
+	repository.NewUserRepository,
+	service.NewUserService,
+)
+
+var HandlerSet = wire.NewSet(
+	handler.NewUserHandler,
+	handler.NewHealthHandler,
+)
+```
+
+### 2. Conditional Providers
+```go
+func provideDatabase(cfg *config.Config) (database.Database, error) {
+	if cfg.Database.Type == "postgres" {
+		return database.NewPostgreSQL(cfg)
+	}
+	return database.NewMongoDB(cfg)
+}
+```
+
+### 3. Interface Providers
+```go
+func provideUserRepository(db database.Database) repository.UserRepository {
+	return repository.NewUserRepository(db)
+}
+```
+
+## Troubleshooting
+
+### 1. Wire Generation Errors
+- Check import paths
+- Verify provider function signatures
+- Ensure all dependencies are available
+- Check for circular dependencies
+
+### 2. Runtime Errors
+- Verify all providers return expected types
+- Check error handling in providers
+- Ensure configuration is valid
+- Test individual providers
+
+### 3. Build Errors
+- Ensure Wire tool is installed
+- Check build tags are correct
+- Verify file locations
+- Clean and regenerate if needed
+description:
+globs:
+alwaysApply: false
+---

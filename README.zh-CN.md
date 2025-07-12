@@ -16,6 +16,7 @@
 - [API 文档](#api-文档)
 - [开发指南](#开发指南)
 - [测试说明](#测试说明)
+- [CI/CD](#cicd)
 - [部署方案](#部署方案)
 - [贡献指南](#贡献指南)
 - [许可证](#许可证)
@@ -110,17 +111,24 @@ UserCenter 是一个基于 Go 语言构建的生产就绪的用户中心服务�
 # 安装 Go
 # 参考：https://golang.org/doc/install
 
-# 安装 Wire
+# 安装 Wire (依赖注入)
 go install github.com/google/wire/cmd/wire@latest
 
-# 安装 Goose
+# 安装 Mockgen (Mock 生成)
+go install github.com/golang/mock/mockgen@latest
+
+# 安装 Goose (数据库迁移)
 go install github.com/pressly/goose/v3/cmd/goose@latest
 
-# 安装 golangci-lint
+# 安装 golangci-lint (代码质量检查)
 curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.54.2
 
 # 安装 Swagger 生成工具
 go install github.com/swaggo/swag/cmd/swag@latest
+
+# 安装覆盖率工具
+go install github.com/axw/gocov/gocov@latest
+go install github.com/AlekSi/gocov-xml@latest
 ```
 
 ## 🚀 快速开始
@@ -340,8 +348,10 @@ make swagger                # 生成 Swagger 文档
 # 测试
 make test                   # 运行所有测试
 make test-coverage          # 运行测试并生成覆盖率报告
+make test-coverage-xml      # 运行测试并生成 XML 覆盖率报告
 make test-short             # 仅运行短测试
 make test-race              # 运行竞态检测测试
+make mockgen                # 生成测试用的 Mock
 
 # 数据库
 make migrate-up             # 运行数据库迁移
@@ -372,11 +382,17 @@ make test
 # 运行测试并生成覆盖率报告
 make test-coverage
 
+# 运行测试并生成 XML 覆盖率报告（用于 CI）
+make test-coverage-xml
+
 # 仅运行单元测试（跳过集成测试）
 make test-short
 
 # 运行竞态检测测试
 make test-race
+
+# 生成测试用的 Mock
+make mockgen
 
 # 运行特定测试
 go test -run TestUserService_CreateUser ./...
@@ -386,11 +402,73 @@ go test -run TestUserService_CreateUser ./...
 项目目标测试覆盖率达到 80% 以上。覆盖率报告生成在：
 - `coverage.out` - 原始覆盖率数据
 - `coverage.html` - HTML 覆盖率报告
+- `coverage.xml` - XML 覆盖率报告（用于 CI 集成）
 
 ### 测试结构
 - **单元测试**：测试单个函数和方法
 - **集成测试**：测试数据库操作和 API 端点
 - **Mock 测试**：使用 gomock 进行依赖模拟
+- **Mock 生成**：使用 `mockgen` 自动生成 Mock
+
+## 🔄 CI/CD
+
+本项目使用 GitHub Actions 进行持续集成和部署。CI/CD 流水线包括代码质量检查、测试、构建和自动化部署。
+
+### 工作流
+
+#### 1. CI 工作流 (`ci.yml`)
+- **触发条件**：推送到 `main`/`develop` 分支，Pull Requests
+- **功能特性**：
+  - 单元和集成测试（含覆盖率）
+  - Mock 生成和依赖注入代码生成
+  - XML 覆盖率报告（用于 CI 集成）
+  - 针对快速执行进行优化（并行测试、缓存）
+
+#### 2. 发布工作流 (`release.yml`)
+- **触发条件**：版本标签推送（如 `v1.0.0`）
+- **功能特性**：
+  - 构建并发布 Docker 镜像到 GitHub Container Registry
+  - 创建 GitHub Releases 并包含资源文件
+  - 多架构支持（linux/amd64, linux/arm64）
+
+#### 3. 部署工作流 (`deploy.yml`)
+- **触发条件**：`main` 分支上 CI 成功完成后
+- **功能特性**：
+  - 自动部署到测试环境
+  - 自动部署到生产环境
+  - 部署通知
+
+#### 4. 安全扫描工作流 (`security.yml`)
+- **触发条件**：每周定时、手动触发、依赖变更
+- **功能特性**：
+  - 代码安全扫描（gosec）
+  - 依赖漏洞检查（govulncheck）
+  - Docker 镜像安全扫描（Trivy）
+  - 文件系统安全扫描
+
+### 设置
+
+1. 在仓库设置中**启用 GitHub Actions**
+2. **配置密钥**用于数据库连接和部署
+3. **设置环境**用于测试和生产
+4. **配置 Dependabot**用于自动依赖更新
+5. **确保 `go.sum` 已提交**（不要忽略）以确保可重现构建
+
+### 使用方法
+
+```bash
+# 创建新发布
+git tag v1.0.0
+git push origin v1.0.0
+
+# 检查工作流状态
+# 访问：https://github.com/username/user-center/actions
+
+# 查看安全扫描结果
+# 访问：https://github.com/username/user-center/security
+```
+
+详细配置和故障排除请参阅 [GitHub Actions 文档](docs/github-actions.md)。
 
 ## 🚀 部署方案
 

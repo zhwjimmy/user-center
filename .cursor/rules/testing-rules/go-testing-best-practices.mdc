@@ -1,0 +1,229 @@
+# Go Testing Best Practices
+
+## Mock Generation and Usage
+
+### 1. Mock File Structure
+- Use `internal/mock/` directory for mock files
+- Generate mocks with correct package name: `-package=mock`
+- Import mocks using full module path: `github.com/zhwjimmy/user-center/internal/mock`
+
+### 2. Mock Generation Commands
+```bash
+# Generate mocks for interfaces
+mockgen -source=internal/service/user.go -destination=internal/mock/user_service_mock.go -package=mock
+mockgen -source=internal/repository/user.go -destination=internal/mock/user_repository_mock.go -package=mock
+mockgen -source=internal/service/auth.go -destination=internal/mock/auth_service_mock.go -package=mock
+```
+
+### 3. Test File Structure
+```go
+package service
+
+import (
+	"context"
+	"testing"
+
+	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/assert"
+	"github.com/zhwjimmy/user-center/internal/mock"
+	"github.com/zhwjimmy/user-center/internal/model"
+)
+
+func TestUserService_CreateUser(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	
+	mockRepo := mock.NewMockUserRepository(ctrl)
+	// Test implementation...
+}
+```
+
+## Test Coverage Best Practices
+
+### 1. Coverage Generation
+- Use `-coverprofile` flag for coverage output
+- Use `-covermode=atomic` for concurrent safety
+- Create coverage directory before tests: `mkdir -p coverage`
+- Generate multiple coverage formats (HTML, XML, text)
+
+### 2. Coverage Commands
+```bash
+# Generate coverage report
+go test -v -coverprofile=coverage/coverage.out -covermode=atomic -p=4 ./...
+
+# Convert to XML for CI/CD
+gocov convert coverage/coverage.out | gocov-xml > coverage/coverage.xml
+
+# Generate HTML report
+go tool cover -html=coverage/coverage.out -o coverage/coverage.html
+```
+
+### 3. Coverage Targets
+- Aim for >80% code coverage
+- Focus on business logic coverage
+- Test error paths and edge cases
+- Use table-driven tests for multiple scenarios
+
+## Test Organization
+
+### 1. Test File Naming
+- Use `*_test.go` suffix
+- Place test files in same package as source
+- Use descriptive test function names
+
+### 2. Test Structure
+```go
+func TestFunctionName_Scenario(t *testing.T) {
+	// Arrange
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	
+	// Act
+	result, err := functionUnderTest()
+	
+	// Assert
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+}
+```
+
+### 3. Table-Driven Tests
+```go
+func TestUserService_CreateUser(t *testing.T) {
+	tests := []struct {
+		name          string
+		user          *model.User
+		expectedError bool
+		setupMock     func(*mock.MockUserRepository)
+	}{
+		{
+			name: "successful user creation",
+			user: &model.User{...},
+			expectedError: false,
+			setupMock: func(repo *mock.MockUserRepository) {
+				// Mock expectations
+			},
+		},
+		// More test cases...
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Test implementation
+		})
+	}
+}
+```
+
+## Mock Expectations
+
+### 1. Setting Expectations
+```go
+// Expect method call with specific parameters
+mockRepo.EXPECT().GetByEmail(gomock.Any(), "test@example.com").
+	Return(&model.User{...}, nil)
+
+// Expect method call with any parameters
+mockRepo.EXPECT().Create(gomock.Any(), gomock.Any()).
+	Return(&model.User{...}, nil)
+
+// Expect method call that returns error
+mockRepo.EXPECT().GetByID(gomock.Any(), uint(1)).
+	Return(nil, assert.AnError)
+```
+
+### 2. Using gomock.Any()
+- Use for context parameters: `gomock.Any()`
+- Use for complex structs when exact match not needed
+- Use for slices and maps when order doesn't matter
+
+### 3. Error Testing
+```go
+// Test error scenarios
+mockRepo.EXPECT().Create(gomock.Any(), gomock.Any()).
+	Return(nil, assert.AnError)
+
+result, err := service.CreateUser(ctx, user)
+assert.Error(t, err)
+assert.Nil(t, result)
+```
+
+## Performance Testing
+
+### 1. Benchmark Tests
+```go
+func BenchmarkUserService_CreateUser(b *testing.B) {
+	ctrl := gomock.NewController(b)
+	defer ctrl.Finish()
+	
+	mockRepo := mock.NewMockUserRepository(ctrl)
+	service := NewUserService(mockRepo, logger)
+	
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		service.CreateUser(ctx, testUser)
+	}
+}
+```
+
+### 2. Parallel Testing
+- Use `-p=4` flag for parallel test execution
+- Ensure tests are thread-safe
+- Use `t.Parallel()` for individual test functions when appropriate
+
+## Test Utilities
+
+### 1. Helper Functions
+```go
+func strPtr(s string) *string { return &s }
+
+func createTestUser() *model.User {
+	return &model.User{
+		Username: "testuser",
+		Email:    "test@example.com",
+		Password: "hashedpassword",
+	}
+}
+```
+
+### 2. Test Setup and Teardown
+```go
+func TestMain(m *testing.M) {
+	// Setup
+	setupTestEnvironment()
+	
+	// Run tests
+	code := m.Run()
+	
+	// Teardown
+	cleanupTestEnvironment()
+	
+	os.Exit(code)
+}
+```
+
+## Common Testing Patterns
+
+### 1. Context Testing
+```go
+ctx := context.Background()
+// or
+ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+defer cancel()
+```
+
+### 2. Logger Testing
+```go
+logger := zap.NewNop() // Use no-op logger for tests
+```
+
+### 3. Error Assertions
+```go
+assert.Error(t, err)
+assert.ErrorIs(t, err, expectedError)
+assert.ErrorContains(t, err, "expected message")
+```
+description:
+globs:
+alwaysApply: false
+---
