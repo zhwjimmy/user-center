@@ -42,14 +42,13 @@ func (s *AuthService) Register(ctx context.Context, req *dto.RegisterRequest) (*
 
 	// Create user model
 	user := &model.User{
-		Username:  req.Username,
-		Email:     req.Email,
-		Password:  hashedPassword,
-		FirstName: req.FirstName,
-		LastName:  req.LastName,
-		Phone:     req.Phone,
-		Status:    model.UserStatusActive,
-		IsActive:  true,
+		Username:     req.Username,
+		Email:        req.Email,
+		PasswordHash: hashedPassword,
+		FirstName:    req.FirstName,
+		LastName:     req.LastName,
+		Phone:        req.Phone,
+		IsActive:     true,
 	}
 
 	// Create user
@@ -67,14 +66,14 @@ func (s *AuthService) Register(ctx context.Context, req *dto.RegisterRequest) (*
 	token, err := s.jwtManager.GenerateToken(createdUser)
 	if err != nil {
 		s.logger.Error("Failed to generate token after registration",
-			zap.Uint("user_id", createdUser.ID),
+			zap.String("user_id", createdUser.ID),
 			zap.Error(err),
 		)
 		return nil, "", fmt.Errorf("failed to generate token")
 	}
 
 	s.logger.Info("User registered successfully",
-		zap.Uint("user_id", createdUser.ID),
+		zap.String("user_id", createdUser.ID),
 		zap.String("email", createdUser.Email),
 		zap.String("username", createdUser.Username),
 	)
@@ -94,20 +93,19 @@ func (s *AuthService) Login(ctx context.Context, req *dto.LoginRequest) (*model.
 	}
 
 	// Check if user is active
-	if !user.IsActive || user.Status != model.UserStatusActive {
+	if !user.IsActive {
 		s.logger.Warn("Login attempt with inactive user",
-			zap.Uint("user_id", user.ID),
+			zap.String("user_id", user.ID),
 			zap.String("email", req.Email),
-			zap.String("status", string(user.Status)),
 			zap.Bool("is_active", user.IsActive),
 		)
 		return nil, "", fmt.Errorf("account is inactive")
 	}
 
 	// Verify password
-	if !s.verifyPassword(req.Password, user.Password) {
+	if !s.verifyPassword(req.Password, user.PasswordHash) {
 		s.logger.Warn("Login attempt with invalid password",
-			zap.Uint("user_id", user.ID),
+			zap.String("user_id", user.ID),
 			zap.String("email", req.Email),
 		)
 		return nil, "", fmt.Errorf("invalid credentials")
@@ -117,14 +115,14 @@ func (s *AuthService) Login(ctx context.Context, req *dto.LoginRequest) (*model.
 	token, err := s.jwtManager.GenerateToken(user)
 	if err != nil {
 		s.logger.Error("Failed to generate token after login",
-			zap.Uint("user_id", user.ID),
+			zap.String("user_id", user.ID),
 			zap.Error(err),
 		)
 		return nil, "", fmt.Errorf("failed to generate token")
 	}
 
 	s.logger.Info("User logged in successfully",
-		zap.Uint("user_id", user.ID),
+		zap.String("user_id", user.ID),
 		zap.String("email", user.Email),
 	)
 
@@ -132,7 +130,7 @@ func (s *AuthService) Login(ctx context.Context, req *dto.LoginRequest) (*model.
 }
 
 // ChangePassword handles password change
-func (s *AuthService) ChangePassword(ctx context.Context, userID uint, req *dto.ChangePasswordRequest) error {
+func (s *AuthService) ChangePassword(ctx context.Context, userID string, req *dto.ChangePasswordRequest) error {
 	// Get user
 	user, err := s.userService.GetUserByID(ctx, userID)
 	if err != nil {
@@ -140,9 +138,9 @@ func (s *AuthService) ChangePassword(ctx context.Context, userID uint, req *dto.
 	}
 
 	// Verify old password
-	if !s.verifyPassword(req.OldPassword, user.Password) {
+	if !s.verifyPassword(req.OldPassword, user.PasswordHash) {
 		s.logger.Warn("Invalid old password in change password request",
-			zap.Uint("user_id", userID),
+			zap.String("user_id", userID),
 		)
 		return fmt.Errorf("invalid old password")
 	}
@@ -151,25 +149,25 @@ func (s *AuthService) ChangePassword(ctx context.Context, userID uint, req *dto.
 	hashedPassword, err := s.hashPassword(req.NewPassword)
 	if err != nil {
 		s.logger.Error("Failed to hash new password",
-			zap.Uint("user_id", userID),
+			zap.String("user_id", userID),
 			zap.Error(err),
 		)
 		return fmt.Errorf("failed to process new password")
 	}
 
 	// Update password
-	user.Password = hashedPassword
+	user.PasswordHash = hashedPassword
 	_, err = s.userService.userRepo.Update(ctx, user)
 	if err != nil {
 		s.logger.Error("Failed to update password",
-			zap.Uint("user_id", userID),
+			zap.String("user_id", userID),
 			zap.Error(err),
 		)
 		return fmt.Errorf("failed to update password")
 	}
 
 	s.logger.Info("Password changed successfully",
-		zap.Uint("user_id", userID),
+		zap.String("user_id", userID),
 	)
 
 	return nil
@@ -188,16 +186,15 @@ func (s *AuthService) RefreshToken(ctx context.Context, tokenString string) (str
 	user, err := s.userService.GetUserByID(ctx, claims.UserID)
 	if err != nil {
 		s.logger.Warn("User not found during token refresh",
-			zap.Uint("user_id", claims.UserID),
+			zap.String("user_id", claims.UserID),
 		)
 		return "", fmt.Errorf("user not found")
 	}
 
 	// Check if user is still active
-	if !user.IsActive || user.Status != model.UserStatusActive {
+	if !user.IsActive {
 		s.logger.Warn("Token refresh attempt for inactive user",
-			zap.Uint("user_id", user.ID),
-			zap.String("status", string(user.Status)),
+			zap.String("user_id", user.ID),
 			zap.Bool("is_active", user.IsActive),
 		)
 		return "", fmt.Errorf("account is inactive")
@@ -207,14 +204,14 @@ func (s *AuthService) RefreshToken(ctx context.Context, tokenString string) (str
 	newToken, err := s.jwtManager.GenerateToken(user)
 	if err != nil {
 		s.logger.Error("Failed to generate new token during refresh",
-			zap.Uint("user_id", user.ID),
+			zap.String("user_id", user.ID),
 			zap.Error(err),
 		)
 		return "", fmt.Errorf("failed to generate token")
 	}
 
 	s.logger.Info("Token refreshed successfully",
-		zap.Uint("user_id", user.ID),
+		zap.String("user_id", user.ID),
 	)
 
 	return newToken, nil
@@ -256,7 +253,7 @@ func (s *AuthService) ForgotPassword(ctx context.Context, email string) error {
 	}
 
 	s.logger.Info("Password reset requested for existing user",
-		zap.Uint("user_id", user.ID),
+		zap.String("user_id", user.ID),
 		zap.String("email", email),
 	)
 

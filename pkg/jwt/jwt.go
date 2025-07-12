@@ -19,7 +19,7 @@ const (
 
 // Claims represents JWT claims
 type Claims struct {
-	UserID   uint       `json:"user_id"`
+	UserID   string     `json:"user_id"`
 	Username string     `json:"username"`
 	Email    string     `json:"email"`
 	Status   UserStatus `json:"status"`
@@ -45,7 +45,7 @@ func NewJWT(secret, issuer string, expiry time.Duration) *JWT {
 // GenerateToken generates a JWT token for a user
 // User interface to avoid circular dependency
 type User interface {
-	GetID() uint
+	GetID() string
 	GetUsername() string
 	GetEmail() string
 	GetStatus() string
@@ -78,7 +78,7 @@ func (j *JWT) GenerateToken(user User) (string, error) {
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now()),
 			Issuer:    j.issuer,
-			Subject:   fmt.Sprintf("%d", user.GetID()),
+			Subject:   user.GetID(),
 		},
 	}
 

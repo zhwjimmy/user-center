@@ -156,7 +156,7 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 		return
 	}
 
-	user, err := h.userService.GetUserByID(c.Request.Context(), uint(id))
+	user, err := h.userService.GetUserByID(c.Request.Context(), strconv.FormatUint(id, 10))
 	if err != nil {
 		h.logger.Error("Failed to get user", zap.Error(err))
 

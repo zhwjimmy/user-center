@@ -28,11 +28,11 @@ func NewUserService(
 }
 
 // GetUserByID retrieves a user by ID
-func (s *UserService) GetUserByID(ctx context.Context, id uint) (*model.User, error) {
+func (s *UserService) GetUserByID(ctx context.Context, id string) (*model.User, error) {
 	user, err := s.userRepo.GetByID(ctx, id)
 	if err != nil {
 		s.logger.Error("Failed to get user by ID",
-			zap.Uint("user_id", id),
+			zap.String("user_id", id),
 			zap.Error(err),
 		)
 		return nil, err
@@ -94,7 +94,7 @@ func (s *UserService) CreateUser(ctx context.Context, user *model.User) (*model.
 	}
 
 	s.logger.Info("User created successfully",
-		zap.Uint("user_id", createdUser.ID),
+		zap.String("user_id", createdUser.ID),
 		zap.String("email", createdUser.Email),
 		zap.String("username", createdUser.Username),
 	)
@@ -103,7 +103,7 @@ func (s *UserService) CreateUser(ctx context.Context, user *model.User) (*model.
 }
 
 // UpdateUser updates user information
-func (s *UserService) UpdateUser(ctx context.Context, id uint, req *dto.UpdateUserRequest) (*model.User, error) {
+func (s *UserService) UpdateUser(ctx context.Context, id string, req *dto.UpdateUserRequest) (*model.User, error) {
 	user, err := s.userRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -117,7 +117,7 @@ func (s *UserService) UpdateUser(ctx context.Context, id uint, req *dto.UpdateUs
 		user.LastName = req.LastName
 	}
 	if req.Avatar != nil {
-		user.Avatar = req.Avatar
+		user.AvatarURL = req.Avatar
 	}
 	if req.Phone != nil {
 		user.Phone = req.Phone
@@ -126,32 +126,32 @@ func (s *UserService) UpdateUser(ctx context.Context, id uint, req *dto.UpdateUs
 	updatedUser, err := s.userRepo.Update(ctx, user)
 	if err != nil {
 		s.logger.Error("Failed to update user",
-			zap.Uint("user_id", id),
+			zap.String("user_id", id),
 			zap.Error(err),
 		)
 		return nil, err
 	}
 
 	s.logger.Info("User updated successfully",
-		zap.Uint("user_id", updatedUser.ID),
+		zap.String("user_id", updatedUser.ID),
 	)
 
 	return updatedUser, nil
 }
 
 // DeleteUser soft deletes a user
-func (s *UserService) DeleteUser(ctx context.Context, id uint) error {
+func (s *UserService) DeleteUser(ctx context.Context, id string) error {
 	err := s.userRepo.Delete(ctx, id)
 	if err != nil {
 		s.logger.Error("Failed to delete user",
-			zap.Uint("user_id", id),
+			zap.String("user_id", id),
 			zap.Error(err),
 		)
 		return err
 	}
 
 	s.logger.Info("User deleted successfully",
-		zap.Uint("user_id", id),
+		zap.String("user_id", id),
 	)
 
 	return nil
@@ -178,7 +178,7 @@ func (s *UserService) ListUsers(ctx context.Context, req *dto.UserListRequest) (
 }
 
 // UpdateUserStatus updates user status
-func (s *UserService) UpdateUserStatus(ctx context.Context, id uint, status model.UserStatus) (*model.User, error) {
+func (s *UserService) UpdateUserStatus(ctx context.Context, id string, status model.UserStatus) (*model.User, error) {
 	if !status.IsValid() {
 		return nil, fmt.Errorf("invalid user status: %s", status)
 	}
@@ -188,11 +188,18 @@ func (s *UserService) UpdateUserStatus(ctx context.Context, id uint, status mode
 		return nil, err
 	}
 
-	user.Status = status
+	// Update user status based on the status enum
+	switch status {
+	case model.UserStatusActive:
+		user.IsActive = true
+	case model.UserStatusInactive, model.UserStatusSuspended, model.UserStatusDeleted:
+		user.IsActive = false
+	}
+
 	updatedUser, err := s.userRepo.Update(ctx, user)
 	if err != nil {
 		s.logger.Error("Failed to update user status",
-			zap.Uint("user_id", id),
+			zap.String("user_id", id),
 			zap.String("status", string(status)),
 			zap.Error(err),
 		)
@@ -200,7 +207,7 @@ func (s *UserService) UpdateUserStatus(ctx context.Context, id uint, status mode
 	}
 
 	s.logger.Info("User status updated successfully",
-		zap.Uint("user_id", updatedUser.ID),
+		zap.String("user_id", updatedUser.ID),
 		zap.String("status", string(status)),
 	)
 
@@ -208,52 +215,50 @@ func (s *UserService) UpdateUserStatus(ctx context.Context, id uint, status mode
 }
 
 // ActivateUser activates a user account
-func (s *UserService) ActivateUser(ctx context.Context, id uint) (*model.User, error) {
+func (s *UserService) ActivateUser(ctx context.Context, id string) (*model.User, error) {
 	user, err := s.userRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
 	user.IsActive = true
-	user.Status = model.UserStatusActive
 
 	updatedUser, err := s.userRepo.Update(ctx, user)
 	if err != nil {
 		s.logger.Error("Failed to activate user",
-			zap.Uint("user_id", id),
+			zap.String("user_id", id),
 			zap.Error(err),
 		)
 		return nil, err
 	}
 
 	s.logger.Info("User activated successfully",
-		zap.Uint("user_id", updatedUser.ID),
+		zap.String("user_id", updatedUser.ID),
 	)
 
 	return updatedUser, nil
 }
 
 // DeactivateUser deactivates a user account
-func (s *UserService) DeactivateUser(ctx context.Context, id uint) (*model.User, error) {
+func (s *UserService) DeactivateUser(ctx context.Context, id string) (*model.User, error) {
 	user, err := s.userRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
 	user.IsActive = false
-	user.Status = model.UserStatusInactive
 
 	updatedUser, err := s.userRepo.Update(ctx, user)
 	if err != nil {
 		s.logger.Error("Failed to deactivate user",
-			zap.Uint("user_id", id),
+			zap.String("user_id", id),
 			zap.Error(err),
 		)
 		return nil, err
 	}
 
 	s.logger.Info("User deactivated successfully",
-		zap.Uint("user_id", updatedUser.ID),
+		zap.String("user_id", updatedUser.ID),
 	)
 
 	return updatedUser, nil
