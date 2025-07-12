@@ -17,7 +17,7 @@ require (
 	github.com/swaggo/files v1.0.1
 	github.com/swaggo/gin-swagger v1.6.0
 	go.mongodb.org/mongo-driver v1.13.1
-	go.uber.org/zap v1.26.0
+	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.37.0
 	gorm.io/driver/postgres v1.5.4
 	gorm.io/gorm v1.25.5
