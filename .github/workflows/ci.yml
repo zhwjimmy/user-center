@@ -63,23 +63,25 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-go-tools-
 
+    - name: Ensure go tools directory exists
+      run: |
+        mkdir -p $HOME/go/bin
+        echo "Go tools directory created: $HOME/go/bin"
+
     - name: Install tools
       run: |
         echo "Installing development tools..."
         
-        # Check if tools are already installed
-        if command -v mockgen >/dev/null 2>&1 && command -v gocov >/dev/null 2>&1 && command -v gocov-xml >/dev/null 2>&1 && command -v wire >/dev/null 2>&1; then
-          echo "Tools already installed, skipping installation"
-        else
-          echo "Installing tools..."
-          # Install tools with specific versions for better caching
-          go install github.com/golang/mock/mockgen@v1.6.0 &
-          go install github.com/axw/gocov/gocov@latest &
-          go install github.com/AlekSi/gocov-xml@latest &
-          go install github.com/google/wire/cmd/wire@v0.6.0 &
-          wait
-          echo "Tools installed successfully"
-        fi
+        # Always install tools to ensure they exist in $HOME/go/bin
+        echo "Installing tools to $HOME/go/bin..."
+        go install github.com/golang/mock/mockgen@v1.6.0
+        go install github.com/axw/gocov/gocov@latest
+        go install github.com/AlekSi/gocov-xml@latest
+        go install github.com/google/wire/cmd/wire@v0.6.0
+        
+        echo "Tools installed successfully"
+        echo "Installed tools:"
+        ls -la $HOME/go/bin/
         
         # Add tools to PATH
         echo "$HOME/go/bin" >> $GITHUB_PATH
