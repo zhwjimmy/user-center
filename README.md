@@ -114,17 +114,24 @@ UserCenter is a production-ready user management service built with Go, providin
 # Install Go
 # Reference: https://golang.org/doc/install
 
-# Install Wire
+# Install Wire (Dependency Injection)
 go install github.com/google/wire/cmd/wire@latest
 
-# Install Goose
+# Install Mockgen (Mock Generation)
+go install github.com/golang/mock/mockgen@latest
+
+# Install Goose (Database Migration)
 go install github.com/pressly/goose/v3/cmd/goose@latest
 
-# Install golangci-lint
+# Install golangci-lint (Code Quality)
 curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.54.2
 
 # Install Swagger generator
 go install github.com/swaggo/swag/cmd/swag@latest
+
+# Install Coverage tools
+go install github.com/axw/gocov/gocov@latest
+go install github.com/AlekSi/gocov-xml@latest
 ```
 
 ## 🚀 Installation
@@ -344,8 +351,10 @@ make swagger                # Generate Swagger documentation
 # Testing
 make test                   # Run all tests
 make test-coverage          # Run tests with coverage
+make test-coverage-xml      # Run tests with XML coverage report
 make test-short             # Run only short tests
 make test-race              # Run tests with race detection
+make mockgen                # Generate mocks for testing
 
 # Database
 make migrate-up             # Run database migrations
@@ -376,11 +385,17 @@ make test
 # Run tests with coverage
 make test-coverage
 
+# Run tests with XML coverage report (for CI)
+make test-coverage-xml
+
 # Run only unit tests (skip integration)
 make test-short
 
 # Run tests with race detection
 make test-race
+
+# Generate mocks for testing
+make mockgen
 
 # Run specific test
 go test -run TestUserService_CreateUser ./...
@@ -390,11 +405,13 @@ go test -run TestUserService_CreateUser ./...
 The project aims for 80%+ test coverage. Coverage reports are generated in:
 - `coverage.out` - Raw coverage data
 - `coverage.html` - HTML coverage report
+- `coverage.xml` - XML coverage report (for CI integration)
 
 ### Test Structure
 - **Unit Tests**: Test individual functions and methods
 - **Integration Tests**: Test database operations and API endpoints
 - **Mock Tests**: Use gomock for dependency mocking
+- **Mock Generation**: Automatically generate mocks using `mockgen`
 
 ## 🔄 CI/CD
 
@@ -405,11 +422,10 @@ This project uses GitHub Actions for continuous integration and deployment. The 
 #### 1. CI Workflow (`ci.yml`)
 - **Triggers**: Push to `main`/`develop` branches, Pull Requests
 - **Features**:
-  - Code quality checks (linting, security scanning)
   - Unit and integration tests with coverage
-  - Multi-platform builds
-  - Docker image building
-  - Code coverage reporting to Codecov
+  - Mock generation and dependency injection code generation
+  - XML coverage reporting for CI integration
+  - Optimized for fast execution (parallel testing, caching)
 
 #### 2. Release Workflow (`release.yml`)
 - **Triggers**: Version tag pushes (e.g., `v1.0.0`)
@@ -439,6 +455,7 @@ This project uses GitHub Actions for continuous integration and deployment. The 
 2. **Configure Secrets** for database connections and deployment
 3. **Set up Environments** for staging and production
 4. **Configure Dependabot** for automated dependency updates
+5. **Ensure `go.sum` is committed** (not ignored) for reproducible builds
 
 ### Usage
 
