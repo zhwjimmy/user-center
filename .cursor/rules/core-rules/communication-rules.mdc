@@ -1,0 +1,117 @@
+# Communication Rules for Development
+
+## Git Commit Message Standards
+
+### 1. Language Requirement
+- **Commit messages MUST be in English**
+- Use conventional commit format when possible
+- Keep messages concise but descriptive
+- Explain what and why, not how
+
+### 2. Commit Message Examples
+```bash
+# ✅ Good examples
+git commit -m "fix: ensure user center starts and migrates DB correctly"
+git commit -m "feat: add user authentication with JWT"
+git commit -m "refactor: unify user ID type to string across all layers"
+git commit -m "docs: update API documentation for user endpoints"
+
+# ❌ Avoid
+git commit -m "修复用户中心启动问题"
+git commit -m "更新代码"
+git commit -m "fix bug"
+```
+
+### 3. Conventional Commit Format
+```
+<type>[optional scope]: <description>
+
+[optional body]
+
+[optional footer(s)]
+```
+
+**Types:**
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation changes
+- `style`: Code style changes (formatting, etc.)
+- `refactor`: Code refactoring
+- `test`: Adding or updating tests
+- `chore`: Maintenance tasks
+
+## Conversation Language Rules
+
+### 1. Response Language
+- **All conversation responses MUST be in Chinese**
+- Use clear and professional Chinese
+- Provide detailed explanations in Chinese
+- Use Chinese for all explanations, discussions, and clarifications
+
+### 2. Code Comments
+- **Code comments can be in English or Chinese**
+- Follow team conventions for code comments
+- Use English for technical terms and API documentation
+- Use Chinese for business logic explanations when needed
+
+### 3. Documentation
+- **README and user-facing docs: Chinese preferred**
+- **API documentation: English required**
+- **Technical documentation: English preferred**
+- **Business documentation: Chinese preferred**
+
+## Implementation Guidelines
+
+### 1. When Making Commits
+- Always use English for commit messages
+- Use conventional commit format
+- Provide clear, descriptive messages
+- Reference issues or tickets when applicable
+
+### 2. When Responding to User
+- Always respond in Chinese
+- Provide detailed explanations
+- Use professional but friendly tone
+- Include relevant code examples when helpful
+
+### 3. When Writing Documentation
+- Choose language based on audience
+- Be consistent within each document
+- Consider international team members
+- Provide translations when necessary
+
+## Examples
+
+### Git Operations
+```bash
+# ✅ Correct - English commit message
+git add .
+git commit -m "fix: resolve database migration issues with UUID fields"
+git push
+
+# ✅ Correct - Chinese response to user
+"代码已成功提交到远程仓库。修复了数据库迁移中 UUID 字段的问题。"
+```
+
+### Code Comments
+```go
+// ✅ Good - English for technical terms
+// Generate JWT token for authenticated user
+func (s *AuthService) Login(ctx context.Context, req *dto.LoginRequest) (*model.User, string, error) {
+    // 验证用户凭据并生成访问令牌
+    // Verify user credentials and generate access token
+}
+```
+
+## Consistency Checklist
+
+- [ ] Commit messages in English
+- [ ] Conversation responses in Chinese
+- [ ] Code comments follow team conventions
+- [ ] Documentation language appropriate for audience
+- [ ] Clear and professional communication
+- [ ] Consistent formatting and style
+description:
+globs:
+alwaysApply: false
+---
