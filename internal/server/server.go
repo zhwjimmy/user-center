@@ -12,6 +12,7 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"github.com/zhwjimmy/user-center/internal/config"
 	"github.com/zhwjimmy/user-center/internal/handler"
+	"github.com/zhwjimmy/user-center/internal/kafka"
 	"github.com/zhwjimmy/user-center/internal/middleware"
 	"go.uber.org/zap"
 )
@@ -19,8 +20,9 @@ import (
 // Server represents the HTTP server
 type Server struct {
 	*gin.Engine
-	config *config.Config
-	logger *zap.Logger
+	config       *config.Config
+	logger       *zap.Logger
+	kafkaService kafka.Service
 }
 
 // New creates a new server instance
@@ -35,6 +37,7 @@ func New(
 	requestIDMiddleware middleware.RequestIDMiddleware,
 	loggerMiddleware middleware.LoggerMiddleware,
 	recoveryMiddleware middleware.RecoveryMiddleware,
+	kafkaService kafka.Service,
 ) *Server {
 	// Set Gin mode
 	gin.SetMode(cfg.Server.Mode)
@@ -117,9 +120,10 @@ func New(
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	return &Server{
-		Engine: r,
-		config: cfg,
-		logger: logger,
+		Engine:       r,
+		config:       cfg,
+		logger:       logger,
+		kafkaService: kafkaService,
 	}
 }
 

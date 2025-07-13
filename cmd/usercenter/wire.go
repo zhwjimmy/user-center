@@ -10,6 +10,8 @@ import (
 	"github.com/zhwjimmy/user-center/internal/config"
 	"github.com/zhwjimmy/user-center/internal/database"
 	"github.com/zhwjimmy/user-center/internal/handler"
+	"github.com/zhwjimmy/user-center/internal/kafka"
+	kafkaConfig "github.com/zhwjimmy/user-center/internal/kafka/config"
 	"github.com/zhwjimmy/user-center/internal/middleware"
 	"github.com/zhwjimmy/user-center/internal/repository"
 	"github.com/zhwjimmy/user-center/internal/server"
@@ -95,6 +97,7 @@ func provideServer(
 	requestIDMiddleware middleware.RequestIDMiddleware,
 	loggerMiddleware middleware.LoggerMiddleware,
 	recoveryMiddleware middleware.RecoveryMiddleware,
+	kafkaService kafka.Service,
 ) *server.Server {
 	return server.New(
 		cfg,
@@ -107,6 +110,7 @@ func provideServer(
 		requestIDMiddleware,
 		loggerMiddleware,
 		recoveryMiddleware,
+		kafkaService,
 	)
 }
 
@@ -115,6 +119,7 @@ func InitializeApp() (*server.Server, error) {
 	wire.Build(
 		// Configuration
 		config.Load,
+		kafkaConfig.NewKafkaClientConfig,
 
 		// Logger
 		provideLogger,
@@ -128,11 +133,15 @@ func InitializeApp() (*server.Server, error) {
 		database.NewMongoDB,
 		cache.NewRedis,
 
+		// Kafka
+		kafka.NewKafkaService,
+
 		// Repositories
 		repository.NewUserRepository,
 
 		// Services
 		service.NewUserService,
+		service.NewEventService,
 		service.NewAuthService,
 
 		// Handlers

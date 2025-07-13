@@ -1,0 +1,362 @@
+# Kafka Best Practices for Go Applications
+
+## Kafka Architecture Patterns
+
+### 1. Producer Configuration
+```go
+// Producer configuration with best practices
+config := sarama.NewConfig()
+config.Producer.RequiredAcks = sarama.WaitForAll
+config.Producer.Retry.Max = 3
+config.Producer.Retry.Backoff = 100 * time.Millisecond
+config.Producer.Return.Successes = true
+config.Producer.Return.Errors = true
+config.Producer.Compression = sarama.CompressionSnappy
+config.Producer.Idempotent = true
+config.Net.MaxOpenRequests = 1
+config.Version = sarama.V2_6_0_0
+```
+
+### 2. Consumer Configuration
+```go
+// Consumer configuration with best practices
+config := sarama.NewConfig()
+config.Consumer.Return.Errors = true
+config.Consumer.Offsets.Initial = sarama.OffsetNewest
+config.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategyRoundRobin
+config.Consumer.Group.Session.Timeout = 10 * time.Second
+config.Consumer.Group.Heartbeat.Interval = 3 * time.Second
+config.Consumer.Offsets.AutoCommit.Enable = true
+config.Consumer.Offsets.AutoCommit.Interval = 1 * time.Second
+config.Version = sarama.V2_6_0_0
+```
+
+## Event-Driven Architecture
+
+### 1. Event Definition
+```go
+// Define strongly typed events
+type UserRegisteredEvent struct {
+    BaseEvent
+    Username  string `json:"username"`
+    Email     string `json:"email"`
+    FirstName string `json:"first_name,omitempty"`
+    LastName  string `json:"last_name,omitempty"`
+}
+
+// Base event structure
+type BaseEvent struct {
+    ID        string                 `json:"id"`
+    Type      EventType              `json:"type"`
+    Source    string                 `json:"source"`
+    Timestamp time.Time              `json:"timestamp"`
+    Version   string                 `json:"version"`
+    RequestID string                 `json:"request_id,omitempty"`
+    UserID    string                 `json:"user_id,omitempty"`
+    Data      map[string]interface{} `json:"data"`
+}
+```
+
+### 2. Event Type Constants
+```go
+// Define event types as constants
+const (
+    UserRegistered      EventType = "user.registered"
+    UserLoggedIn        EventType = "user.logged_in"
+    UserPasswordChanged EventType = "user.password_changed"
+    UserStatusChanged   EventType = "user.status_changed"
+    UserDeleted         EventType = "user.deleted"
+    UserUpdated         EventType = "user.updated"
+)
+```
+
+## Producer Implementation
+
+### 1. Producer Interface
+```go
+type Producer interface {
+    PublishUserEvent(ctx context.Context, event interface{}) error
+    PublishUserEventAsync(ctx context.Context, event interface{}) error
+    Close() error
+}
+```
+
+### 2. Message Creation
+```go
+func (p *KafkaProducer) createMessage(eventData interface{}) (*sarama.ProducerMessage, error) {
+    var topic, key string
+    var value []byte
+    var headers []sarama.RecordHeader
+
+    switch e := eventData.(type) {
+    case *event.UserRegisteredEvent:
+        topic = p.config.GetTopicName("user_events")
+        key = e.UserID
+        value, err = e.ToJSON()
+        headers = []sarama.RecordHeader{
+            {Key: []byte("event_type"), Value: []byte(e.Type)},
+            {Key: []byte("request_id"), Value: []byte(e.RequestID)},
+        }
+    // Handle other event types...
+    }
+
+    return &sarama.ProducerMessage{
+        Topic:     topic,
+        Key:       sarama.StringEncoder(key),
+        Value:     sarama.ByteEncoder(value),
+        Headers:   headers,
+        Timestamp: time.Now(),
+    }, nil
+}
+```
+
+## Consumer Implementation
+
+### 1. Consumer Interface
+```go
+type Consumer interface {
+    Start(ctx context.Context) error
+    Stop() error
+}
+```
+
+### 2. Message Handler Interface
+```go
+type MessageHandler interface {
+    HandleUserRegistered(ctx context.Context, event *event.UserRegisteredEvent) error
+    HandleUserLoggedIn(ctx context.Context, event *event.UserLoggedInEvent) error
+    HandleUserPasswordChanged(ctx context.Context, event *event.UserPasswordChangedEvent) error
+    HandleUserStatusChanged(ctx context.Context, event *event.UserStatusChangedEvent) error
+    HandleUserDeleted(ctx context.Context, event *event.UserDeletedEvent) error
+    HandleUserUpdated(ctx context.Context, event *event.UserUpdatedEvent) error
+}
+```
+
+### 3. Message Processing
+```go
+func (c *KafkaConsumer) processMessage(ctx context.Context, message *sarama.ConsumerMessage) error {
+    eventType := c.getEventType(message.Headers)
+
+    switch event.EventType(eventType) {
+    case event.UserRegistered:
+        var userEvent event.UserRegisteredEvent
+        if err := userEvent.FromJSON(message.Value); err != nil {
+            return fmt.Errorf("failed to unmarshal user registered event: %w", err)
+        }
+        return c.handler.HandleUserRegistered(ctx, &userEvent)
+    // Handle other event types...
+    }
+}
+```
+
+## Testing Patterns
+
+### 1. Integration Test Setup
+```go
+func TestKafkaProducer(t *testing.T) {
+    // Skip integration test in CI environment
+    if testing.Short() {
+        t.Skip("skipping integration test")
+    }
+
+    // Check if Kafka is available
+    if !isKafkaAvailable("localhost:9092") {
+        t.Skip("skipping test: Kafka not available")
+    }
+
+    // Test implementation...
+}
+
+func isKafkaAvailable(addr string) bool {
+    conn, err := net.DialTimeout("tcp", addr, 2*time.Second)
+    if err != nil {
+        return false
+    }
+    conn.Close()
+    return true
+}
+```
+
+### 2. Mock Testing
+```go
+func TestEventService_PublishUserRegisteredEvent(t *testing.T) {
+    ctrl := gomock.NewController(t)
+    defer ctrl.Finish()
+
+    mockProducer := mock.NewMockProducer(ctrl)
+    eventService := NewEventService(mockProducer, logger)
+
+    user := &model.User{
+        ID:       "test-user-id",
+        Username: "testuser",
+        Email:    "test@example.com",
+    }
+
+    mockProducer.EXPECT().
+        PublishUserEventAsync(gomock.Any(), gomock.Any()).
+        Return(nil)
+
+    err := eventService.PublishUserRegisteredEvent(ctx, user)
+    assert.NoError(t, err)
+}
+```
+
+## Error Handling
+
+### 1. Producer Error Handling
+```go
+func (p *KafkaProducer) handleErrors() {
+    defer p.wg.Done()
+
+    for {
+        select {
+        case err := <-p.producer.Errors():
+            p.logger.Error("Failed to publish message",
+                zap.String("topic", err.Msg.Topic),
+                zap.Error(err.Err),
+            )
+        case <-p.closed:
+            return
+        }
+    }
+}
+```
+
+### 2. Consumer Error Handling
+```go
+func (c *KafkaConsumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
+    for {
+        select {
+        case message := <-claim.Messages():
+            if err := c.processMessage(session.Context(), message); err != nil {
+                c.logger.Error("Failed to process message",
+                    zap.String("topic", message.Topic),
+                    zap.Int32("partition", message.Partition),
+                    zap.Int64("offset", message.Offset),
+                    zap.Error(err),
+                )
+                // Continue processing next message, don't break
+                continue
+            }
+            session.MarkMessage(message, "")
+        case <-session.Context().Done():
+            return nil
+        }
+    }
+}
+```
+
+## Configuration Management
+
+### 1. Kafka Configuration Structure
+```go
+type KafkaClientConfig struct {
+    Brokers       []string
+    Topics        map[string]string
+    GroupID       string
+    RetryMax      int
+    RetryBackoff  time.Duration
+    BatchSize     int
+    BatchTimeout  time.Duration
+    FlushMessages int
+    FlushBytes    int
+    Compression   sarama.CompressionCodec
+}
+```
+
+### 2. Configuration Loading
+```go
+func NewKafkaClientConfig(cfg *config.Config) *KafkaClientConfig {
+    return &KafkaClientConfig{
+        Brokers:       cfg.Kafka.Brokers,
+        Topics:        cfg.Kafka.Topics,
+        GroupID:       cfg.Kafka.GroupID,
+        RetryMax:      3,
+        RetryBackoff:  100 * time.Millisecond,
+        BatchSize:     100,
+        BatchTimeout:  10 * time.Millisecond,
+        FlushMessages: 100,
+        FlushBytes:    1024 * 1024, // 1MB
+        Compression:   sarama.CompressionSnappy,
+    }
+}
+```
+
+## Dependency Injection with Wire
+
+### 1. Wire Configuration for Kafka
+```go
+// In wire.go
+wire.Build(
+    // Configuration
+    config.Load,
+    kafkaConfig.NewKafkaClientConfig,
+
+    // Kafka
+    kafka.NewKafkaService,
+
+    // Services
+    service.NewEventService,
+
+    // Other dependencies...
+)
+```
+
+### 2. Service Integration
+```go
+// In auth service
+func (s *AuthService) Register(ctx context.Context, req *dto.RegisterRequest) (*model.User, string, error) {
+    // Business logic...
+    
+    // Publish user registration event
+    if err := s.eventService.PublishUserRegisteredEvent(ctx, createdUser); err != nil {
+        s.logger.Error("Failed to publish user registered event", zap.Error(err))
+        // Don't return error to avoid affecting main business flow
+    }
+
+    return createdUser, token, nil
+}
+```
+
+## Monitoring and Observability
+
+### 1. Structured Logging
+```go
+c.logger.Info("Processing user registered event",
+    zap.String("user_id", event.UserID),
+    zap.String("username", event.Username),
+    zap.String("email", event.Email),
+    zap.String("request_id", event.RequestID),
+)
+```
+
+### 2. Metrics Collection
+```go
+// Add Prometheus metrics for Kafka operations
+var (
+    kafkaProducerMessagesTotal = prometheus.NewCounterVec(
+        prometheus.CounterOpts{
+            Name: "kafka_producer_messages_total",
+            Help: "Total number of messages published",
+        },
+        []string{"topic", "event_type"},
+    )
+)
+```
+
+## Best Practices Summary
+
+1. **Use strongly typed events** with proper JSON serialization
+2. **Implement proper error handling** with graceful degradation
+3. **Use idempotent producers** for exactly-once delivery
+4. **Configure appropriate timeouts** and retry policies
+5. **Add comprehensive logging** for debugging and monitoring
+6. **Skip integration tests** in CI environments when Kafka is not available
+7. **Use dependency injection** for clean, testable code
+8. **Implement graceful shutdown** to ensure message delivery
+9. **Add health checks** for Kafka connectivity
+10. **Use structured logging** with context for better observability
+description:
+globs:
+alwaysApply: false
+---

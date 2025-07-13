@@ -147,6 +147,22 @@ test-watch: ## Run tests in watch mode (requires air)
 	@echo "Running tests in watch mode..."
 	air -c .air.toml
 
+.PHONY: test-kafka
+test-kafka: ## Run Kafka integration tests
+	@echo "Running Kafka integration tests..."
+	$(GOTEST) -v -tags=kafka ./internal/service/...
+
+.PHONY: test-kafka-manual
+test-kafka-manual: ## Run manual Kafka test script
+	@echo "Running manual Kafka test script..."
+	@if [ -f "./scripts/test-kafka.sh" ]; then \
+		chmod +x ./scripts/test-kafka.sh; \
+		./scripts/test-kafka.sh; \
+	else \
+		echo "Kafka test script not found: ./scripts/test-kafka.sh"; \
+		exit 1; \
+	fi
+
 ##@ Code Quality
 
 .PHONY: fmt

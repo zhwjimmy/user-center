@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/gin-gonic/gin"
 	"github.com/zhwjimmy/user-center/internal/dto"
 	"github.com/zhwjimmy/user-center/internal/model"
 	"github.com/zhwjimmy/user-center/pkg/jwt"
@@ -13,21 +14,24 @@ import (
 
 // AuthService handles authentication business logic
 type AuthService struct {
-	userService *UserService
-	jwtManager  *jwt.JWT
-	logger      *zap.Logger
+	userService  *UserService
+	eventService *EventService // New
+	jwtManager   *jwt.JWT
+	logger       *zap.Logger
 }
 
 // NewAuthService creates a new auth service
 func NewAuthService(
 	userService *UserService,
+	eventService *EventService, // New
 	jwtManager *jwt.JWT,
 	logger *zap.Logger,
 ) *AuthService {
 	return &AuthService{
-		userService: userService,
-		jwtManager:  jwtManager,
-		logger:      logger,
+		userService:  userService,
+		eventService: eventService, // New
+		jwtManager:   jwtManager,
+		logger:       logger,
 	}
 }
 
@@ -70,6 +74,15 @@ func (s *AuthService) Register(ctx context.Context, req *dto.RegisterRequest) (*
 			zap.Error(err),
 		)
 		return nil, "", fmt.Errorf("failed to generate token")
+	}
+
+	// Publish user registration event
+	if err := s.eventService.PublishUserRegisteredEvent(ctx, createdUser); err != nil {
+		s.logger.Error("Failed to publish user registered event",
+			zap.String("user_id", createdUser.ID),
+			zap.Error(err),
+		)
+		// Do not return error to avoid affecting main business flow
 	}
 
 	s.logger.Info("User registered successfully",
@@ -121,6 +134,17 @@ func (s *AuthService) Login(ctx context.Context, req *dto.LoginRequest) (*model.
 		return nil, "", fmt.Errorf("failed to generate token")
 	}
 
+	// Publish user login event
+	ipAddress := s.getClientIP(ctx)
+	userAgent := s.getUserAgent(ctx)
+	if err := s.eventService.PublishUserLoggedInEvent(ctx, user, ipAddress, userAgent); err != nil {
+		s.logger.Error("Failed to publish user logged in event",
+			zap.String("user_id", user.ID),
+			zap.Error(err),
+		)
+		// Do not return error to avoid affecting main business flow
+	}
+
 	s.logger.Info("User logged in successfully",
 		zap.String("user_id", user.ID),
 		zap.String("email", user.Email),
@@ -164,6 +188,16 @@ func (s *AuthService) ChangePassword(ctx context.Context, userID string, req *dt
 			zap.Error(err),
 		)
 		return fmt.Errorf("failed to update password")
+	}
+
+	// Publish user password changed event
+	ipAddress := s.getClientIP(ctx)
+	if err := s.eventService.PublishUserPasswordChangedEvent(ctx, user, ipAddress); err != nil {
+		s.logger.Error("Failed to publish user password changed event",
+			zap.String("user_id", userID),
+			zap.Error(err),
+		)
+		// Do not return error to avoid affecting main business flow
 	}
 
 	s.logger.Info("Password changed successfully",
@@ -274,4 +308,19 @@ func (s *AuthService) ResetPassword(ctx context.Context, token, newPassword stri
 
 	// TODO: Implement password reset logic
 	return fmt.Errorf("password reset not implemented")
+}
+
+// 辅助方法
+func (s *AuthService) getClientIP(ctx context.Context) string {
+	if ginCtx, ok := ctx.(*gin.Context); ok {
+		return ginCtx.ClientIP()
+	}
+	return ""
+}
+
+func (s *AuthService) getUserAgent(ctx context.Context) string {
+	if ginCtx, ok := ctx.(*gin.Context); ok {
+		return ginCtx.GetHeader("User-Agent")
+	}
+	return ""
 }

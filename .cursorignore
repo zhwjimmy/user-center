@@ -58,18 +58,9 @@ ehthumbs.db
 Thumbs.db
 
 # Environment and config files with sensitive data
-.env
-.env.local
-.env.*.local
-config.local.yaml
-config.prod.yaml
 *.pem
 *.key
 *.cert
-
-# Docker
-.dockerignore
-docker-compose.override.yml
 
 # Kubernetes
 *.kubeconfig
