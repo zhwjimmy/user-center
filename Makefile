@@ -231,6 +231,44 @@ docker-compose-down: ## Stop services with docker-compose
 	@echo "Stopping services with docker-compose..."
 	docker-compose down
 
+.PHONY: docker-compose-logs
+docker-compose-logs: ## Show docker-compose logs
+	@echo "Showing docker-compose logs..."
+	docker-compose logs -f
+
+.PHONY: docker-compose-ps
+docker-compose-ps: ## Show docker-compose service status
+	@echo "Showing docker-compose service status..."
+	docker-compose ps
+
+.PHONY: setup-env
+setup-env: ## Setup local environment variables
+	@echo "Setting up local environment variables..."
+	@if [ ! -f .env ]; then \
+		echo "Creating .env file..."; \
+		echo "USERCENTER_DATABASE_POSTGRES_HOST=localhost" > .env; \
+		echo "USERCENTER_DATABASE_POSTGRES_PORT=5432" >> .env; \
+		echo "USERCENTER_DATABASE_POSTGRES_USER=postgres" >> .env; \
+		echo "USERCENTER_DATABASE_POSTGRES_PASSWORD=password" >> .env; \
+		echo "USERCENTER_DATABASE_POSTGRES_DBNAME=usercenter" >> .env; \
+		echo "USERCENTER_DATABASE_POSTGRES_SSLMODE=disable" >> .env; \
+		echo ".env file created successfully!"; \
+	else \
+		echo ".env file already exists"; \
+	fi
+
+.PHONY: dev-start
+dev-start: setup-env docker-compose-up ## Start development environment
+	@echo "Development environment started!"
+	@echo "Next steps:"
+	@echo "1. Run 'make run-dev' to start the application"
+	@echo "2. Access the service at http://localhost:8080"
+	@echo "3. View logs with 'make docker-compose-logs'"
+
+.PHONY: dev-stop
+dev-stop: docker-compose-down ## Stop development environment
+	@echo "Development environment stopped!"
+
 ##@ Cleanup
 
 .PHONY: clean

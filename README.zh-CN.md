@@ -190,20 +190,42 @@ make wire
 make swagger
 ```
 
-### 7. 运行服务
+### 7. 配置本地环境（可选）
 ```bash
-# 开发环境
-make run
+# 创建 .env 文件用于自动加载环境变量
+cat > .env << EOF
+USERCENTER_DATABASE_POSTGRES_HOST=localhost
+USERCENTER_DATABASE_POSTGRES_PORT=5432
+USERCENTER_DATABASE_POSTGRES_USER=postgres
+USERCENTER_DATABASE_POSTGRES_PASSWORD=password
+USERCENTER_DATABASE_POSTGRES_DBNAME=usercenter
+USERCENTER_DATABASE_POSTGRES_SSLMODE=disable
+EOF
 
-# 或者直接运行
-go run cmd/usercenter/main.go
+# 加载环境变量
+source .env
+```
+
+### 8. 运行服务
+```bash
+# 开发环境（支持热重载）
+make run-dev
+
+# 或者直接运行（带环境变量）
+USERCENTER_DATABASE_POSTGRES_HOST=localhost \
+USERCENTER_DATABASE_POSTGRES_PORT=5432 \
+USERCENTER_DATABASE_POSTGRES_USER=postgres \
+USERCENTER_DATABASE_POSTGRES_PASSWORD=password \
+USERCENTER_DATABASE_POSTGRES_DBNAME=usercenter \
+USERCENTER_DATABASE_POSTGRES_SSLMODE=disable \
+./bin/usercenter
 
 # 生产环境
 make build
 ./bin/usercenter
 ```
 
-### 8. 验证服务
+### 9. 验证服务
 ```bash
 # 检查健康状态
 curl http://localhost:8080/health
@@ -211,6 +233,23 @@ curl http://localhost:8080/health
 # 访问 Swagger 文档
 open http://localhost:8080/swagger/index.html
 ```
+
+## 🚀 本地开发
+
+### 开发工作流
+
+- **依赖服务**：通过 Docker Compose 管理（数据库、缓存、消息队列等）
+- **应用服务**：本地运行，便于快速开发和调试
+- **热重载**：代码修改自动触发重新编译和重启
+- **环境变量**：使用 `.env` 文件或 `direnv` 实现自动加载
+
+### 服务访问地址
+
+- **API 服务**: http://localhost:8080
+- **健康检查**: http://localhost:8080/health
+- **Swagger 文档**: http://localhost:8080/swagger/index.html
+- **Jaeger UI**: http://localhost:16686
+- **Prometheus**: http://localhost:9090
 
 ## 🔧 故障排除
 

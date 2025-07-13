@@ -211,6 +211,70 @@ kafka-console-consumer \
 - **Implementation Summary**: `KAFKA_IMPLEMENTATION_SUMMARY.md` - High-level architecture overview
 - **Test Script**: `scripts/test-kafka.sh` - Automated Kafka functionality testing
 
+## 🚀 Local Development
+
+### Quick Start
+
+1. **Start dependency services**
+   ```bash
+   docker-compose up -d
+   ```
+
+2. **Configure environment variables**
+   ```bash
+   # Create .env file for automatic environment variable loading
+   cat > .env << EOF
+   USERCENTER_DATABASE_POSTGRES_HOST=localhost
+   USERCENTER_DATABASE_POSTGRES_PORT=5432
+   USERCENTER_DATABASE_POSTGRES_USER=postgres
+   USERCENTER_DATABASE_POSTGRES_PASSWORD=password
+   USERCENTER_DATABASE_POSTGRES_DBNAME=usercenter
+   USERCENTER_DATABASE_POSTGRES_SSLMODE=disable
+   EOF
+   
+   # Load environment variables
+   source .env
+   ```
+
+3. **Run the application**
+   ```bash
+   # Development mode with hot reload
+   make run-dev
+   
+   # Or run directly with environment variables
+   USERCENTER_DATABASE_POSTGRES_HOST=localhost \
+   USERCENTER_DATABASE_POSTGRES_PORT=5432 \
+   USERCENTER_DATABASE_POSTGRES_USER=postgres \
+   USERCENTER_DATABASE_POSTGRES_PASSWORD=password \
+   USERCENTER_DATABASE_POSTGRES_DBNAME=usercenter \
+   USERCENTER_DATABASE_POSTGRES_SSLMODE=disable \
+   ./bin/usercenter
+   ```
+
+4. **Verify the service**
+   ```bash
+   # Check health status
+   curl http://localhost:8080/health
+   
+   # Access Swagger documentation
+   open http://localhost:8080/swagger/index.html
+   ```
+
+### Development Workflow
+
+- **Dependency Services**: Managed via Docker Compose (databases, cache, message queues)
+- **Application Service**: Runs locally for fast development and debugging
+- **Hot Reload**: Code changes automatically trigger rebuild and restart
+- **Environment Variables**: Use `.env` file or `direnv` for automatic loading
+
+### Service Access
+
+- **API Service**: http://localhost:8080
+- **Health Check**: http://localhost:8080/health
+- **Swagger Docs**: http://localhost:8080/swagger/index.html
+- **Jaeger UI**: http://localhost:16686
+- **Prometheus**: http://localhost:9090
+
 ## 🛠️ Development
 
 ### Project Structure
