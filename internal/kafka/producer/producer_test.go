@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/IBM/sarama"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/zhwjimmy/user-center/internal/kafka/config"
@@ -24,7 +25,14 @@ func TestKafkaProducer(t *testing.T) {
 		Topics: map[string]string{
 			"user_events": "test.user.events",
 		},
-		GroupID: "test-group",
+		GroupID:       "test-group",
+		RetryMax:      3,
+		RetryBackoff:  100 * time.Millisecond,
+		BatchSize:     100,
+		BatchTimeout:  10 * time.Millisecond,
+		FlushMessages: 100,
+		FlushBytes:    1024 * 1024, // 1MB
+		Compression:   sarama.CompressionSnappy,
 	}
 
 	producer, err := NewKafkaProducer(cfg, logger)
