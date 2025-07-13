@@ -67,10 +67,6 @@ config.prod.yaml
 *.key
 *.cert
 
-# Docker
-.dockerignore
-docker-compose.override.yml
-
 # Kubernetes
 *.kubeconfig
 

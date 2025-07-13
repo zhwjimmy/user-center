@@ -92,7 +92,6 @@ temp/
 *.temp
 
 # Docker
-.dockerignore
 docker-compose.override.yml
 docker-compose.local.yml
 .docker/

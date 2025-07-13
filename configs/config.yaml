@@ -33,6 +33,8 @@ kafka:
   brokers: ["localhost:9092"]
   topics:
     user_events: "user.events"
+    user_notifications: "user.notifications"
+    user_analytics: "user.analytics"
   group_id: "usercenter"
 
 jwt:
