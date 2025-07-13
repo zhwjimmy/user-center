@@ -15,7 +15,7 @@ import (
 // AuthService handles authentication business logic
 type AuthService struct {
 	userService  *UserService
-	eventService *EventService // 新增
+	eventService *EventService // New
 	jwtManager   *jwt.JWT
 	logger       *zap.Logger
 }
@@ -23,13 +23,13 @@ type AuthService struct {
 // NewAuthService creates a new auth service
 func NewAuthService(
 	userService *UserService,
-	eventService *EventService, // 新增
+	eventService *EventService, // New
 	jwtManager *jwt.JWT,
 	logger *zap.Logger,
 ) *AuthService {
 	return &AuthService{
 		userService:  userService,
-		eventService: eventService, // 新增
+		eventService: eventService, // New
 		jwtManager:   jwtManager,
 		logger:       logger,
 	}
@@ -76,13 +76,13 @@ func (s *AuthService) Register(ctx context.Context, req *dto.RegisterRequest) (*
 		return nil, "", fmt.Errorf("failed to generate token")
 	}
 
-	// 发布用户注册事件
+	// Publish user registration event
 	if err := s.eventService.PublishUserRegisteredEvent(ctx, createdUser); err != nil {
 		s.logger.Error("Failed to publish user registered event",
 			zap.String("user_id", createdUser.ID),
 			zap.Error(err),
 		)
-		// 不返回错误，避免影响主要业务流程
+		// Do not return error to avoid affecting main business flow
 	}
 
 	s.logger.Info("User registered successfully",
@@ -134,7 +134,7 @@ func (s *AuthService) Login(ctx context.Context, req *dto.LoginRequest) (*model.
 		return nil, "", fmt.Errorf("failed to generate token")
 	}
 
-	// 发布用户登录事件
+	// Publish user login event
 	ipAddress := s.getClientIP(ctx)
 	userAgent := s.getUserAgent(ctx)
 	if err := s.eventService.PublishUserLoggedInEvent(ctx, user, ipAddress, userAgent); err != nil {
@@ -142,7 +142,7 @@ func (s *AuthService) Login(ctx context.Context, req *dto.LoginRequest) (*model.
 			zap.String("user_id", user.ID),
 			zap.Error(err),
 		)
-		// 不返回错误，避免影响主要业务流程
+		// Do not return error to avoid affecting main business flow
 	}
 
 	s.logger.Info("User logged in successfully",
@@ -190,14 +190,14 @@ func (s *AuthService) ChangePassword(ctx context.Context, userID string, req *dt
 		return fmt.Errorf("failed to update password")
 	}
 
-	// 发布用户密码变更事件
+	// Publish user password changed event
 	ipAddress := s.getClientIP(ctx)
 	if err := s.eventService.PublishUserPasswordChangedEvent(ctx, user, ipAddress); err != nil {
 		s.logger.Error("Failed to publish user password changed event",
 			zap.String("user_id", userID),
 			zap.Error(err),
 		)
-		// 不返回错误，避免影响主要业务流程
+		// Do not return error to avoid affecting main business flow
 	}
 
 	s.logger.Info("Password changed successfully",

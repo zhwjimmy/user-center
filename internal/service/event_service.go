@@ -10,13 +10,13 @@ import (
 	"go.uber.org/zap"
 )
 
-// EventService 事件服务
+// EventService provides event publishing services
 type EventService struct {
 	kafkaService kafka.Service
 	logger       *zap.Logger
 }
 
-// NewEventService 创建事件服务
+// NewEventService creates a new event service
 func NewEventService(kafkaService kafka.Service, logger *zap.Logger) *EventService {
 	return &EventService{
 		kafkaService: kafkaService,
@@ -24,7 +24,7 @@ func NewEventService(kafkaService kafka.Service, logger *zap.Logger) *EventServi
 	}
 }
 
-// PublishUserRegisteredEvent 发布用户注册事件
+// PublishUserRegisteredEvent publishes a user registered event
 func (s *EventService) PublishUserRegisteredEvent(ctx context.Context, user *model.User) error {
 	requestID := s.getRequestID(ctx)
 
@@ -44,7 +44,7 @@ func (s *EventService) PublishUserRegisteredEvent(ctx context.Context, user *mod
 	return s.kafkaService.GetProducer().PublishUserEventAsync(ctx, userEvent)
 }
 
-// PublishUserLoggedInEvent 发布用户登录事件
+// PublishUserLoggedInEvent publishes a user logged in event
 func (s *EventService) PublishUserLoggedInEvent(ctx context.Context, user *model.User, ipAddress, userAgent string) error {
 	requestID := s.getRequestID(ctx)
 
@@ -64,7 +64,7 @@ func (s *EventService) PublishUserLoggedInEvent(ctx context.Context, user *model
 	return s.kafkaService.GetProducer().PublishUserEventAsync(ctx, userEvent)
 }
 
-// PublishUserPasswordChangedEvent 发布用户密码变更事件
+// PublishUserPasswordChangedEvent publishes a user password changed event
 func (s *EventService) PublishUserPasswordChangedEvent(ctx context.Context, user *model.User, ipAddress string) error {
 	requestID := s.getRequestID(ctx)
 
@@ -83,7 +83,7 @@ func (s *EventService) PublishUserPasswordChangedEvent(ctx context.Context, user
 	return s.kafkaService.GetProducer().PublishUserEventAsync(ctx, userEvent)
 }
 
-// PublishUserStatusChangedEvent 发布用户状态变更事件
+// PublishUserStatusChangedEvent publishes a user status changed event
 func (s *EventService) PublishUserStatusChangedEvent(ctx context.Context, user *model.User, oldStatus, newStatus string) error {
 	requestID := s.getRequestID(ctx)
 
@@ -103,7 +103,7 @@ func (s *EventService) PublishUserStatusChangedEvent(ctx context.Context, user *
 	return s.kafkaService.GetProducer().PublishUserEventAsync(ctx, userEvent)
 }
 
-// PublishUserDeletedEvent 发布用户删除事件
+// PublishUserDeletedEvent publishes a user deleted event
 func (s *EventService) PublishUserDeletedEvent(ctx context.Context, user *model.User) error {
 	requestID := s.getRequestID(ctx)
 
@@ -121,7 +121,7 @@ func (s *EventService) PublishUserDeletedEvent(ctx context.Context, user *model.
 	return s.kafkaService.GetProducer().PublishUserEventAsync(ctx, userEvent)
 }
 
-// PublishUserUpdatedEvent 发布用户更新事件
+// PublishUserUpdatedEvent publishes a user updated event
 func (s *EventService) PublishUserUpdatedEvent(ctx context.Context, user *model.User, changes map[string]interface{}) error {
 	requestID := s.getRequestID(ctx)
 
@@ -140,7 +140,7 @@ func (s *EventService) PublishUserUpdatedEvent(ctx context.Context, user *model.
 	return s.kafkaService.GetProducer().PublishUserEventAsync(ctx, userEvent)
 }
 
-// getRequestID 从上下文获取请求ID
+// getRequestID gets the request ID from context
 func (s *EventService) getRequestID(ctx context.Context) string {
 	if ginCtx, ok := ctx.(*gin.Context); ok {
 		if requestID := ginCtx.GetHeader("X-Request-ID"); requestID != "" {
@@ -150,7 +150,7 @@ func (s *EventService) getRequestID(ctx context.Context) string {
 	return ""
 }
 
-// getStringValue 获取字符串指针的值
+// getStringValue gets the value from a string pointer
 func (s *EventService) getStringValue(ptr *string) string {
 	if ptr != nil {
 		return *ptr
