@@ -73,212 +73,13 @@ UserCenter is a production-ready user management service built with Go, providin
 - Distributed tracing with OpenTelemetry
 - Performance monitoring
 
-## 🛠️ Technology Stack
-
-### Core Framework
-- **Web Framework**: [Gin](https://github.com/gin-gonic/gin) - High-performance HTTP web framework
-- **Dependency Injection**: [Wire](https://github.com/google/wire) - Compile-time dependency injection
-- **API Documentation**: [Swagger](https://github.com/swaggo/gin-swagger) - Auto-generated OpenAPI 3.0 documentation
-
-### Data Storage
-- **Primary Database**: [PostgreSQL](https://www.postgresql.org/) + [GORM](https://gorm.io/) - User core data
-- **Auxiliary Database**: [MongoDB](https://www.mongodb.com/) - Logs and session data
-- **Cache**: [Redis](https://redis.io/) - High-performance caching
-- **Database Migration**: [Goose](https://github.com/pressly/goose) - Database version control
-
-### Message & Task Processing
-- **Message Queue**: [Kafka](https://kafka.apache.org/) - Event consumption
-- **Async Tasks**: [Asynq](https://github.com/hibiken/asynq) - Background task processing
-
-### Monitoring & Logging
-- **Logging**: [Zap](https://github.com/uber-go/zap) - High-performance structured logging
-- **Monitoring**: [Prometheus](https://prometheus.io/) - Metrics collection
-- **Distributed Tracing**: [OpenTelemetry](https://opentelemetry.io/) - Distributed tracing
-
-### Security & Utilities
-- **Authentication**: [JWT](https://github.com/golang-jwt/jwt) - Stateless authentication
-- **Internationalization**: [go-i18n](https://github.com/nicksnyder/go-i18n) - Multi-language support
-- **Configuration**: YAML configuration files
-- **Code Quality**: [golangci-lint](https://golangci-lint.run/) - Code quality checks
-
-## 📋 Prerequisites
-
-### System Requirements
-- Go 1.23.1 or higher
-- PostgreSQL 13+
-- MongoDB 5.0+
-- Redis 6.0+
-- Apache Kafka 2.8+
-
-### Development Tools
-```bash
-# Install Go
-# Reference: https://golang.org/doc/install
-
-# Install Wire (Dependency Injection)
-go install github.com/google/wire/cmd/wire@latest
-
-# Install Mockgen (Mock Generation)
-go install github.com/golang/mock/mockgen@latest
-
-# Install Goose (Database Migration)
-go install github.com/pressly/goose/v3/cmd/goose@latest
-
-# Install golangci-lint (Code Quality)
-curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.54.2
-
-# Install Swagger generator
-go install github.com/swaggo/swag/cmd/swag@latest
-
-# Install Coverage tools
-go install github.com/axw/gocov/gocov@latest
-go install github.com/AlekSi/gocov-xml@latest
-```
-
-## 🚀 Quick Start
-
-### Option 1: Using Docker Compose (Recommended)
-```bash
-# 1. Clone the repository
-git clone <repository-url>
-cd user-center
-
-# 2. Start all dependencies with Docker Compose
-docker-compose up -d
-
-# 3. Run database migrations
-make migrate-up
-
-# 4. Generate Wire dependency injection code
-make wire
-
-# 5. Generate Swagger documentation
-make swagger
-
-# 6. Start the service
-make run
-```
-
-### Option 2: Manual Setup
-```bash
-# 1. Clone the repository
-git clone <repository-url>
-cd user-center
-
-# 2. Install dependencies
-go mod download
-
-# 3. Configure environment
-cp configs/config.example.yaml configs/config.yaml
-# Edit configs/config.yaml with your database settings
-
-# 4. Start dependencies (PostgreSQL, MongoDB, Redis, Kafka)
-# Make sure you have these services running locally
-
-# 5. Run database migrations
-make migrate-up
-
-# 6. Generate Wire dependency injection code
-make wire
-
-# 7. Generate Swagger documentation
-make swagger
-
-# 8. Start the service
-make run
-```
-
-### Verify Installation
-```bash
-# Check service health
-curl http://localhost:8080/health
-
-# Access Swagger documentation
-open http://localhost:8080/swagger/index.html
-```
-
-### Troubleshooting
-
-#### Database Migration Issues
-If you encounter "failed to migrate database: insufficient arguments" error:
-
-1. **Ensure pgcrypto extension is enabled**:
-   ```sql
-   CREATE EXTENSION IF NOT EXISTS "pgcrypto";
-   ```
-
-2. **Clean and recreate database tables**:
-   ```bash
-   docker exec -i usercenter-postgres psql -U postgres -d usercenter -c 'DROP TABLE IF EXISTS users CASCADE;'
-   make migrate-up
-   ```
-
-3. **Check database connection**:
-   ```bash
-   docker-compose ps
-   ```
-
-#### Service Startup Issues
-- Ensure all dependencies are running: `docker-compose ps`
-- Check logs: `docker-compose logs -f`
-- Verify configuration: `configs/config.yaml`
-
-## ⚙️ Configuration
-
-The project supports multiple configuration methods with priority from high to low:
-
-1. **Environment Variables**: `USERCENTER_` prefix
-2. **Configuration File**: `configs/config.yaml`
-3. **Default Values**: Default configuration in code
-
-### Main Configuration Items
-
-```yaml
-server:
-  host: "0.0.0.0"
-  port: 8080
-  mode: "debug"  # debug, release, test
-
-database:
-  postgres:
-    host: "localhost"
-    port: 5432
-    user: "username"
-    password: "password"
-    dbname: "usercenter"
-    sslmode: "disable"
-  
-  mongodb:
-    uri: "mongodb://localhost:27017"
-    database: "usercenter_logs"
-  
-  redis:
-    addr: "localhost:6379"
-    password: ""
-    db: 0
-
-kafka:
-  brokers: ["localhost:9092"]
-  topics:
-    user_events: "user.events"
-
-jwt:
-  secret: "your-secret-key"
-  expiry: "24h"
-
-logging:
-  level: "info"
-  format: "json"
-
-monitoring:
-  prometheus:
-    enabled: true
-    port: 9090
-  
-  tracing:
-    enabled: true
-    endpoint: "http://localhost:14268/api/traces"
-```
+### Event-Driven Architecture
+- **Asynchronous Event Processing**: Kafka-based event-driven architecture for user lifecycle events
+- **Event Types**: User registration, login, password change, status change, deletion, and update events
+- **Reliable Delivery**: Idempotent producers with retry mechanisms and message acknowledgment
+- **Scalable Processing**: Consumer groups with load balancing and horizontal scaling
+- **Observability**: Comprehensive logging, metrics, and health checks for Kafka operations
+- **Graceful Degradation**: Event publishing failures don't affect main business flows
 
 ## 📚 API Documentation
 
@@ -345,6 +146,71 @@ DELETE /api/v1/users/{id}
 Authorization: Bearer <jwt_token>
 ```
 
+## 📚 Kafka Event Processing
+
+### Event-Driven Architecture
+
+The application implements a robust event-driven architecture using Apache Kafka for asynchronous processing of user lifecycle events.
+
+#### Supported Event Types
+- **User Registration**: `user.registered` - Triggered when a new user registers
+- **User Login**: `user.logged_in` - Triggered when a user successfully logs in
+- **Password Change**: `user.password_changed` - Triggered when a user changes their password
+- **Status Change**: `user.status_changed` - Triggered when user status is modified
+- **User Deletion**: `user.deleted` - Triggered when a user account is deleted
+- **User Update**: `user.updated` - Triggered when user profile is updated
+
+#### Event Processing Features
+- **Reliable Delivery**: Idempotent producers with retry mechanisms
+- **Message Acknowledgment**: Consumer group with automatic offset management
+- **Scalable Processing**: Horizontal scaling with consumer groups
+- **Graceful Degradation**: Event publishing failures don't affect main business flows
+- **Comprehensive Logging**: Structured logging with request ID tracking
+- **Health Monitoring**: Kafka connectivity and consumer group health checks
+
+### Kafka Configuration
+
+```yaml
+kafka:
+  brokers: ["localhost:9092"]
+  topics:
+    user_events: "user.events"
+    user_notifications: "user.notifications"
+    user_analytics: "user.analytics"
+  group_id: "usercenter"
+```
+
+### Testing Kafka Integration
+
+```bash
+# Run Kafka integration tests
+make test-kafka
+
+# Manual Kafka test script
+./scripts/test-kafka.sh
+
+# Test user registration (triggers Kafka event)
+curl -X POST http://localhost:8080/api/v1/users/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "testuser",
+    "email": "test@example.com",
+    "password": "password123"
+  }'
+
+# Monitor Kafka messages
+kafka-console-consumer \
+  --bootstrap-server localhost:9092 \
+  --topic user.events \
+  --from-beginning
+```
+
+### Kafka Documentation
+
+- **Integration Guide**: `docs/kafka-integration.md` - Detailed setup and usage guide
+- **Implementation Summary**: `KAFKA_IMPLEMENTATION_SUMMARY.md` - High-level architecture overview
+- **Test Script**: `scripts/test-kafka.sh` - Automated Kafka functionality testing
+
 ## 🛠️ Development
 
 ### Project Structure
@@ -390,6 +256,10 @@ make test-coverage-xml      # Run tests with XML coverage report
 make test-short             # Run only short tests
 make test-race              # Run tests with race detection
 make mockgen                # Generate mocks for testing
+
+# Kafka Testing
+make test-kafka             # Run Kafka integration tests
+./scripts/test-kafka.sh     # Manual Kafka test script
 
 # Database
 make migrate-up             # Run database migrations
