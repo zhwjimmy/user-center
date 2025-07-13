@@ -1,4 +1,43 @@
----
+# UserCenter Project Context
+
+## Architecture Overview
+
+This is a Go-based user management service with a hybrid development architecture:
+
+### Service Architecture
+- **Application Service**: Runs locally for fast development and debugging
+- **Dependency Services**: Managed via Docker Compose (databases, cache, message queues)
+
+### Key Technologies
+- **Language**: Go 1.23.1
+- **Framework**: Gin (HTTP framework)
+- **Database**: PostgreSQL 15 (primary), MongoDB 6.0 (logs)
+- **Cache**: Redis 7
+- **Message Queue**: Apache Kafka 7.3.0
+- **Monitoring**: Prometheus, Jaeger (distributed tracing)
+- **Documentation**: Swagger/OpenAPI
+
+### Development Workflow
+- Dependencies: `docker-compose up -d`
+- Application: `make run-dev` or `./bin/usercenter`
+- Environment: Use `.env` file for automatic variable loading
+- Hot reload: Code changes trigger automatic rebuild
+
+### Key Directories
+- `cmd/usercenter/`: Application entry point
+- `internal/`: Private application code
+- `configs/`: Configuration files
+- `docs/`: Documentation
+- `migrations/`: Database migrations
+
+### Environment Variables
+Required for local development:
+- `USERCENTER_DATABASE_POSTGRES_HOST=localhost`
+- `USERCENTER_DATABASE_POSTGRES_PORT=5432`
+- `USERCENTER_DATABASE_POSTGRES_USER=postgres`
+- `USERCENTER_DATABASE_POSTGRES_PASSWORD=password`
+- `USERCENTER_DATABASE_POSTGRES_DBNAME=usercenter`
+- `USERCENTER_DATABASE_POSTGRES_SSLMODE=disable`
 description:
 globs:
 alwaysApply: false

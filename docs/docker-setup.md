@@ -2,7 +2,19 @@
 
 ## 概述
 
-本项目使用 Docker Compose 来管理所有依赖服务，包括数据库、缓存、消息队列和监控工具。
+本项目使用 Docker Compose 来管理所有依赖服务，包括数据库、缓存、消息队列和监控工具。**应用服务本身通过本地方式运行，便于开发和调试。**
+
+## 架构说明
+
+### 服务分层
+- **依赖服务**：通过 Docker Compose 管理（数据库、缓存、消息队列等）
+- **应用服务**：本地运行，便于热重载、调试和开发
+
+### 优势
+- 🚀 **快速开发**：本地运行应用服务，支持热重载
+- 🔧 **易于调试**：可以直接调试本地代码
+- 📊 **资源优化**：依赖服务容器化，应用服务本地化
+- 🔄 **灵活配置**：开发环境配置更灵活
 
 ## 服务列表
 
@@ -21,37 +33,62 @@
 
 ## 快速开始
 
-### 1. 启动所有服务
+### 1. 启动依赖服务
 
 ```bash
-# 启动所有服务
-make docker-compose-up
-
-# 或者直接使用 docker-compose
+# 启动所有依赖服务
 docker-compose up -d
-```
 
-### 2. 检查服务状态
-
-```bash
-# 查看所有容器状态
+# 检查服务状态
 docker-compose ps
-
-# 查看服务日志
-docker-compose logs -f
-
-# 查看特定服务日志
-docker-compose logs -f postgres
 ```
 
-### 3. 停止服务
+### 2. 配置本地环境
+
+创建 `.env` 文件（可选，用于自动加载环境变量）：
 
 ```bash
-# 停止所有服务
-make docker-compose-down
+# 创建 .env 文件
+cat > .env << EOF
+USERCENTER_DATABASE_POSTGRES_HOST=localhost
+USERCENTER_DATABASE_POSTGRES_PORT=5432
+USERCENTER_DATABASE_POSTGRES_USER=postgres
+USERCENTER_DATABASE_POSTGRES_PASSWORD=password
+USERCENTER_DATABASE_POSTGRES_DBNAME=usercenter
+USERCENTER_DATABASE_POSTGRES_SSLMODE=disable
+EOF
 
-# 或者直接使用 docker-compose
-docker-compose down
+# 加载环境变量
+source .env
+```
+
+### 3. 启动应用服务
+
+```bash
+# 方式一：使用环境变量启动
+USERCENTER_DATABASE_POSTGRES_HOST=localhost \
+USERCENTER_DATABASE_POSTGRES_PORT=5432 \
+USERCENTER_DATABASE_POSTGRES_USER=postgres \
+USERCENTER_DATABASE_POSTGRES_PASSWORD=password \
+USERCENTER_DATABASE_POSTGRES_DBNAME=usercenter \
+USERCENTER_DATABASE_POSTGRES_SSLMODE=disable \
+./bin/usercenter
+
+# 方式二：如果已创建 .env 文件
+source .env && ./bin/usercenter
+
+# 方式三：开发模式（自动重新编译）
+make run-dev
+```
+
+### 4. 验证服务
+
+```bash
+# 检查应用服务健康状态
+curl http://localhost:8080/health
+
+# 检查依赖服务状态
+docker-compose ps
 ```
 
 ## 服务访问地址
@@ -76,6 +113,53 @@ docker-compose down
 - **Jaeger UI**: http://localhost:16686
 - **Prometheus**: http://localhost:9090
 
+### 应用服务
+- **API 服务**: http://localhost:8080
+- **健康检查**: http://localhost:8080/health
+- **Swagger 文档**: http://localhost:8080/swagger/index.html
+
+## 开发工作流
+
+### 1. 日常开发流程
+
+```bash
+# 1. 启动依赖服务
+docker-compose up -d
+
+# 2. 启动应用服务（开发模式）
+make run-dev
+
+# 3. 进行开发...
+
+# 4. 停止服务
+docker-compose down
+```
+
+### 2. 代码修改后重启
+
+```bash
+# 应用服务会自动重新编译和启动
+# 或者手动重启
+pkill usercenter
+make run-dev
+```
+
+### 3. 依赖服务管理
+
+```bash
+# 查看服务状态
+docker-compose ps
+
+# 查看服务日志
+docker-compose logs -f [service-name]
+
+# 重启特定服务
+docker-compose restart [service-name]
+
+# 停止所有服务
+docker-compose down
+```
+
 ## 配置说明
 
 ### 网络配置
@@ -96,7 +180,43 @@ docker-compose down
 
 ## 开发环境配置
 
-### 1. 更新配置文件
+### 1. 环境变量配置
+
+推荐使用 `.env` 文件管理环境变量：
+
+```bash
+# .env 文件内容
+USERCENTER_DATABASE_POSTGRES_HOST=localhost
+USERCENTER_DATABASE_POSTGRES_PORT=5432
+USERCENTER_DATABASE_POSTGRES_USER=postgres
+USERCENTER_DATABASE_POSTGRES_PASSWORD=password
+USERCENTER_DATABASE_POSTGRES_DBNAME=usercenter
+USERCENTER_DATABASE_POSTGRES_SSLMODE=disable
+
+# 可选：Redis 配置
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+REDIS_DB=0
+
+# 可选：Kafka 配置
+KAFKA_BROKERS=localhost:9092
+```
+
+### 2. 使用 direnv（推荐）
+
+安装 `direnv` 实现自动环境变量加载：
+
+```bash
+# macOS
+brew install direnv
+
+# 在项目根目录创建 .envrc 文件
+echo "source .env" > .envrc
+direnv allow
+```
+
+### 3. 配置文件
 
 确保 `configs/config.yaml` 中的配置与 Docker 服务匹配：
 
@@ -128,16 +248,6 @@ monitoring:
     endpoint: "http://localhost:14268/api/traces"
 ```
 
-### 2. 运行应用
-
-```bash
-# 启动依赖服务
-make docker-compose-up
-
-# 运行应用
-make run-dev
-```
-
 ## 故障排除
 
 ### 常见问题
@@ -149,6 +259,7 @@ make run-dev
    lsof -i :27017
    lsof -i :6379
    lsof -i :9092
+   lsof -i :8080
    ```
 
 2. **服务启动失败**
@@ -160,10 +271,21 @@ make run-dev
    docker-compose restart [service-name]
    ```
 
-3. **数据丢失**
+3. **应用服务连接失败**
    ```bash
-   # 删除所有数据（谨慎使用）
-   docker-compose down -v
+   # 检查环境变量
+   env | grep USERCENTER
+   
+   # 检查数据库连接
+   psql -h localhost -U postgres -d usercenter
+   ```
+
+4. **Kafka 集群 ID 冲突**
+   ```bash
+   # 清理 Kafka 数据
+   docker-compose down
+   docker volume rm user-center_kafka_data user-center_zookeeper_data
+   docker-compose up -d
    ```
 
 ### 重置环境
@@ -209,4 +331,37 @@ docker stats
 
 # 清理未使用的资源
 docker system prune -a
-``` 
+
+# 查看应用服务进程
+ps aux | grep usercenter
+
+# 查看应用服务端口
+lsof -i :8080
+```
+
+## 开发工具集成
+
+### IDE 配置
+
+#### VS Code
+```json
+{
+  "go.toolsEnvVars": {
+    "USERCENTER_DATABASE_POSTGRES_HOST": "localhost",
+    "USERCENTER_DATABASE_POSTGRES_PORT": "5432",
+    "USERCENTER_DATABASE_POSTGRES_USER": "postgres",
+    "USERCENTER_DATABASE_POSTGRES_PASSWORD": "password",
+    "USERCENTER_DATABASE_POSTGRES_DBNAME": "usercenter",
+    "USERCENTER_DATABASE_POSTGRES_SSLMODE": "disable"
+  }
+}
+```
+
+#### GoLand
+在运行配置中添加环境变量：
+- `USERCENTER_DATABASE_POSTGRES_HOST=localhost`
+- `USERCENTER_DATABASE_POSTGRES_PORT=5432`
+- `USERCENTER_DATABASE_POSTGRES_USER=postgres`
+- `USERCENTER_DATABASE_POSTGRES_PASSWORD=password`
+- `USERCENTER_DATABASE_POSTGRES_DBNAME=usercenter`
+- `USERCENTER_DATABASE_POSTGRES_SSLMODE=disable` 
