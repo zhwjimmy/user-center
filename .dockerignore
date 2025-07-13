@@ -76,10 +76,3 @@ internal/mock/
 
 # Swagger docs (will be generated)
 docs/swagger/
-
-internal/
-├── kafka/
-│   ├── producer/          # 生产者
-│   ├── consumer/          # 消费者
-│   ├── event/            # 事件定义
-│   └── config/           # Kafka配置
