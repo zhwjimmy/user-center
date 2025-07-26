@@ -1,0 +1,162 @@
+# Middleware Development Standards
+
+## 🎯 Middleware Design Principles
+- Keep middleware focused and single-purpose
+- Use dependency injection for testability
+- Implement proper error handling and logging
+- Follow the chain of responsibility pattern
+- Ensure middleware is idempotent
+
+## 🔧 Common Middleware Patterns
+
+### Authentication Middleware
+```go
+func (m *AuthMiddleware) RequireAuth() gin.HandlerFunc {
+    return func(c *gin.Context) {
+        // Extract and validate token
+        token := extractToken(c)
+        if token == "" {
+            c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
+                Error:   "Unauthorized",
+                Message: "Authorization header is required",
+            })
+            c.Abort()
+            return
+        }
+        
+        // Validate token and set claims
+        claims, err := m.jwtManager.ValidateToken(token)
+        if err != nil {
+            c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
+                Error:   "Unauthorized", 
+                Message: "Invalid or expired token",
+            })
+            c.Abort()
+            return
+        }
+        
+        // Set user context
+        c.Set("user_id", claims.UserID)
+        c.Set("username", claims.Username)
+        c.Next()
+    }
+}
+```
+
+### Rate Limiting Middleware
+```go
+func (m *RateLimitMiddleware) RateLimit() gin.HandlerFunc {
+    return func(c *gin.Context) {
+        clientIP := c.ClientIP()
+        key := fmt.Sprintf("rate_limit:%s", clientIP)
+        
+        allowed, err := m.checkRateLimit(c.Request.Context(), key)
+        if err != nil {
+            m.logger.Error("Rate limit check failed", zap.Error(err))
+            c.Next() // Allow on error
+            return
+        }
+        
+        if !allowed {
+            c.JSON(http.StatusTooManyRequests, dto.ErrorResponse{
+                Error:   "Too Many Requests",
+                Message: "Rate limit exceeded",
+            })
+            c.Abort()
+            return
+        }
+        
+        c.Next()
+    }
+}
+```
+
+### Logging Middleware
+```go
+func NewLoggerMiddleware(logger *zap.Logger) gin.HandlerFunc {
+    return ginzap.GinzapWithConfig(logger, &ginzap.Config{
+        TimeFormat: time.RFC3339,
+        UTC:        true,
+        SkipPaths:  []string{"/health", "/ready", "/live"},
+    })
+}
+```
+
+## 📋 Middleware Requirements
+
+### Error Handling
+- Always use `c.Abort()` when returning error responses
+- Log errors with appropriate context
+- Don't expose internal errors to clients
+- Use consistent error response format
+
+### Performance
+- Minimize middleware overhead
+- Use efficient data structures
+- Avoid blocking operations in middleware
+- Implement proper caching strategies
+
+### Security
+- Validate all inputs
+- Sanitize outputs
+- Implement proper authentication checks
+- Use secure headers
+
+## 🔄 Middleware Order
+Recommended middleware order:
+1. Recovery (panic handling)
+2. Request ID (for tracing)
+3. Logger (request logging)
+4. CORS (cross-origin requests)
+5. Rate Limiting (throttling)
+6. Authentication (JWT validation)
+7. Authorization (role checks)
+8. Business logic handlers
+
+## 🧪 Testing Middleware
+```go
+func TestAuthMiddleware_RequireAuth(t *testing.T) {
+    ctrl := gomock.NewController(t)
+    defer ctrl.Finish()
+    
+    mockJWT := mocks.NewMockJWT(ctrl)
+    logger := zap.NewNop()
+    
+    middleware := NewAuthMiddleware(mockJWT, logger)
+    
+    // Test valid token
+    w := httptest.NewRecorder()
+    c, _ := gin.CreateTestContext(w)
+    c.Request = httptest.NewRequest("GET", "/", nil)
+    c.Request.Header.Set("Authorization", "Bearer valid-token")
+    
+    mockJWT.EXPECT().ValidateToken("valid-token").Return(&jwt.Claims{
+        UserID: "123",
+        Username: "testuser",
+    }, nil)
+    
+    middleware.RequireAuth()(c)
+    
+    assert.Equal(t, "123", c.GetString("user_id"))
+    assert.Equal(t, "testuser", c.GetString("username"))
+}
+```
+
+## ❌ Common Mistakes
+- Not calling `c.Next()` or `c.Abort()`
+- Exposing sensitive information in logs
+- Not handling middleware errors properly
+- Using global state in middleware
+- Not implementing proper cleanup
+
+## ✅ Best Practices
+- Use dependency injection for testability
+- Implement proper error handling
+- Add comprehensive logging
+- Follow the single responsibility principle
+- Use consistent naming conventions
+- Document middleware behavior clearly
+description: "Middleware development patterns and best practices for UserCenter"
+globs: ["internal/middleware/**/*.go"]
+alwaysApply: false
+---

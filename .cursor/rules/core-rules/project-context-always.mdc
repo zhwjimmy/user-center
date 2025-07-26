@@ -1,36 +1,57 @@
 # UserCenter Project Context
 
-## Architecture Overview
+You are working on **UserCenter**, a production-ready Go user management service built with clean architecture principles.
 
-This is a Go-based user management service with a hybrid development architecture:
-
-### Service Architecture
-- **Application Service**: Runs locally for fast development and debugging
-- **Dependency Services**: Managed via Docker Compose (databases, cache, message queues)
-
-### Key Technologies
-- **Language**: Go 1.23.1
-- **Framework**: Gin (HTTP framework)
-- **Database**: PostgreSQL 15 (primary), MongoDB 6.0 (logs)
-- **Cache**: Redis 7
-- **Message Queue**: Apache Kafka 7.3.0
-- **Monitoring**: Prometheus, Jaeger (distributed tracing)
+## 🏗️ Core Architecture
+- **Language**: Go 1.21+
+- **Framework**: Gin web framework  
+- **Database**: PostgreSQL (primary), MongoDB (auxiliary), Redis (cache)
+- **Authentication**: JWT-based with bcrypt password hashing
+- **Dependency Injection**: Wire framework
 - **Documentation**: Swagger/OpenAPI
 
-### Development Workflow
+## 📁 Project Structure
+```
+cmd/usercenter/          # Application entry point
+internal/
+  ├── config/            # Configuration management
+  ├── model/             # Domain entities (GORM models)
+  ├── dto/               # Data transfer objects
+  ├── service/           # Business logic layer
+  ├── repository/        # Data access layer
+  ├── handler/           # HTTP handlers (controllers)
+  ├── middleware/        # HTTP middleware
+  ├── server/            # Server setup and routing
+  └── database/          # Database connections
+pkg/                     # Shared packages
+configs/                 # Configuration files
+```
+
+## 🎯 Key Features
+- User CRUD operations with validation
+- JWT authentication and authorization
+- Rate limiting (general, login, registration)
+- Health checks for all dependencies
+- Request ID tracking
+- Graceful shutdown
+- CORS support
+- Comprehensive logging with Zap
+
+## 📋 Development Standards
+- Follow Go standard project layout
+- Use dependency injection for testability
+- Implement proper error handling
+- Include comprehensive Swagger documentation
+- Maintain high test coverage (80%+)
+- Follow RESTful API conventions
+
+## 🔧 Development Workflow
 - Dependencies: `docker-compose up -d`
 - Application: `make run-dev` or `./bin/usercenter`
 - Environment: Use `.env` file for automatic variable loading
 - Hot reload: Code changes trigger automatic rebuild
 
-### Key Directories
-- `cmd/usercenter/`: Application entry point
-- `internal/`: Private application code
-- `configs/`: Configuration files
-- `docs/`: Documentation
-- `migrations/`: Database migrations
-
-### Environment Variables
+## 🌐 Environment Variables
 Required for local development:
 - `USERCENTER_DATABASE_POSTGRES_HOST=localhost`
 - `USERCENTER_DATABASE_POSTGRES_PORT=5432`
@@ -38,7 +59,3 @@ Required for local development:
 - `USERCENTER_DATABASE_POSTGRES_PASSWORD=password`
 - `USERCENTER_DATABASE_POSTGRES_DBNAME=usercenter`
 - `USERCENTER_DATABASE_POSTGRES_SSLMODE=disable`
-description:
-globs:
-alwaysApply: false
----

@@ -137,7 +137,7 @@ func (s *AuthService) Login(ctx context.Context, req *dto.LoginRequest) (*model.
 - [ ] Documentation language appropriate for audience
 - [ ] Clear and professional communication
 - [ ] Consistent formatting and style
-description:
-globs:
-alwaysApply: false
+description: "Communication standards and language rules for UserCenter development"
+globs: []
+alwaysApply: true
 ---

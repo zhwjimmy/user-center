@@ -98,7 +98,7 @@ test-coverage-xml: ## Generate XML coverage report for CI/CD
 - Use appropriate runner types
 - Cache dependencies and build artifacts
 - Clean up temporary files
-description:
-globs:
+description: "CI/CD best practices and GitHub Actions optimization for UserCenter"
+globs: [".github/**/*.yml", "Makefile", "Dockerfile"]
 alwaysApply: false
 ---

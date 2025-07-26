@@ -1,5 +1,225 @@
 ---
-description:
-globs:
+description: "Testing standards and patterns for UserCenter Go code"
+globs: ["**/*_test.go", "**/test/**/*.go"]
 alwaysApply: false
 ---
+# Go Testing Standards
+
+## 🎯 Testing Requirements
+- Aim for 80%+ code coverage
+- Test both success and error scenarios
+- Use table-driven tests for multiple scenarios
+- Mock external dependencies
+- Include integration tests for database operations
+
+## 📝 Test Structure
+```go
+func TestServiceName_MethodName(t *testing.T) {
+    tests := []struct {
+        name           string
+        input          InputType
+        mockSetup      func(*mocks.MockDependency)
+        expectedResult ExpectedType
+        expectedError  string
+    }{
+        {
+            name: "success case",
+            input: InputType{/* valid data */},
+            mockSetup: func(m *mocks.MockDependency) {
+                m.EXPECT().Method(gomock.Any()).Return(nil)
+            },
+            expectedResult: ExpectedType{/* expected result */},
+            expectedError:  "",
+        },
+        {
+            name: "error case",
+            input: InputType{/* invalid data */},
+            mockSetup: func(m *mocks.MockDependency) {
+                m.EXPECT().Method(gomock.Any()).Return(errors.New("dependency error"))
+            },
+            expectedResult: ExpectedType{},
+            expectedError:  "expected error message",
+        },
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            // Setup mocks
+            ctrl := gomock.NewController(t)
+            defer ctrl.Finish()
+            mockDep := mocks.NewMockDependency(ctrl)
+            tt.mockSetup(mockDep)
+
+            // Create service with mock
+            service := NewService(mockDep)
+
+            // Execute test
+            result, err := service.Method(tt.input)
+
+            // Assertions
+            if tt.expectedError != "" {
+                assert.Error(t, err)
+                assert.Contains(t, err.Error(), tt.expectedError)
+            } else {
+                assert.NoError(t, err)
+                assert.Equal(t, tt.expectedResult, result)
+            }
+        })
+    }
+}
+```
+
+## 🧪 Testing Patterns
+
+### Unit Test Example
+```go
+func TestUserService_CreateUser(t *testing.T) {
+    ctrl := gomock.NewController(t)
+    defer ctrl.Finish()
+
+    mockRepo := mocks.NewMockUserRepository(ctrl)
+    mockAuth := mocks.NewMockAuthService(ctrl)
+    
+    service := &UserService{
+        userRepo: mockRepo,
+        authService: mockAuth,
+    }
+
+    user := &model.User{
+        Username: "testuser",
+        Email:    "test@example.com",
+        Password: "plaintext",
+    }
+
+    mockAuth.EXPECT().HashPassword("plaintext").Return("hashedpassword", nil)
+    mockRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil)
+
+    err := service.CreateUser(context.Background(), user)
+    assert.NoError(t, err)
+}
+```
+
+### Integration Test Example
+```go
+func TestUserRepository_Integration(t *testing.T) {
+    if testing.Short() {
+        t.Skip("skipping integration test")
+    }
+
+    db := setupTestDB(t)
+    defer cleanupTestDB(t, db)
+
+    repo := repository.NewUserRepository(db)
+    
+    user := &model.User{
+        Username: "testuser",
+        Email:    "test@example.com",
+        Password: "hashedpassword",
+    }
+
+    // Test Create
+    err := repo.Create(context.Background(), user)
+    assert.NoError(t, err)
+    assert.NotZero(t, user.ID)
+
+    // Test GetByID
+    retrieved, err := repo.GetByID(context.Background(), user.ID)
+    assert.NoError(t, err)
+    assert.Equal(t, user.Username, retrieved.Username)
+}
+```
+
+## 🔧 Test Utilities
+```go
+// setupTestDB creates a test database connection
+func setupTestDB(t *testing.T) *gorm.DB {
+    dsn := "host=localhost user=test password=test dbname=test_db port=5432 sslmode=disable"
+    db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+    require.NoError(t, err)
+    
+    // Run migrations
+    err = db.AutoMigrate(&model.User{})
+    require.NoError(t, err)
+    
+    return db
+}
+
+// cleanupTestDB cleans up test data
+func cleanupTestDB(t *testing.T, db *gorm.DB) {
+    db.Exec("TRUNCATE TABLE users CASCADE")
+}
+```
+
+## 🎭 Mock Generation
+Use gomock for generating mocks:
+```bash
+//go:generate mockgen -source=interfaces.go -destination=mocks/mock_interfaces.go
+```
+
+## 📊 Test Coverage
+```go
+// Test helper to verify test coverage
+func TestMain(m *testing.M) {
+    // Setup test environment
+    setupTestEnvironment()
+    
+    // Run tests
+    code := m.Run()
+    
+    // Cleanup
+    teardownTestEnvironment()
+    
+    os.Exit(code)
+}
+```
+
+## 🔍 Benchmarking
+```go
+func BenchmarkUserService_CreateUser(b *testing.B) {
+    service := setupBenchmarkService()
+    user := &model.User{
+        Username: "benchuser",
+        Email:    "bench@example.com",
+    }
+    
+    b.ResetTimer()
+    for i := 0; i < b.N; i++ {
+        _ = service.CreateUser(context.Background(), user)
+    }
+}
+```
+
+## ✅ Best Practices
+- Use descriptive test names that explain the scenario
+- Test one behavior per test function
+- Keep tests independent and isolated
+- Use setup/teardown functions for common test data
+- Assert on specific error messages, not just error existence
+- Use `testing.Short()` to skip long-running tests in CI
+- Separate unit tests from integration tests
+
+## ❌ Common Mistakes
+- Testing implementation details instead of behavior
+- Not cleaning up test data
+- Sharing state between tests
+- Not testing error conditions
+- Overly complex test setup
+- Not using table-driven tests for similar scenarios
+
+## 🚀 Test Commands
+```bash
+# Run all tests
+go test ./...
+
+# Run tests with coverage
+go test -cover ./...
+
+# Run tests with race detection
+go test -race ./...
+
+# Run only short tests (skip integration)
+go test -short ./...
+
+# Run specific test
+go test -run TestUserService_CreateUser ./...
+```

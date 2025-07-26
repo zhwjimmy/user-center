@@ -356,7 +356,7 @@ var (
 8. **Implement graceful shutdown** to ensure message delivery
 9. **Add health checks** for Kafka connectivity
 10. **Use structured logging** with context for better observability
-description:
-globs:
+description: "Kafka event-driven architecture patterns and best practices for UserCenter"
+globs: ["internal/kafka/**/*.go", "internal/service/**/*.go"]
 alwaysApply: false
 ---
