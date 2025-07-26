@@ -1,4 +1,4 @@
-package consumer
+package messaging
 
 import (
 	"context"
@@ -6,20 +6,18 @@ import (
 	"sync"
 
 	"github.com/IBM/sarama"
-	"github.com/zhwjimmy/user-center/internal/infrastructure/messaging"
 	"go.uber.org/zap"
 )
 
-// Consumer Kafka消费者接口
-type Consumer interface {
-	Start(ctx context.Context) error
-	Stop() error
+// MessageHandler 消息处理器接口
+type MessageHandler interface {
+	HandleMessage(ctx context.Context, message *sarama.ConsumerMessage) error
 }
 
-// KafkaConsumer Kafka消费者实现
-type KafkaConsumer struct {
+// kafkaConsumer Kafka消费者实现
+type kafkaConsumer struct {
 	consumer sarama.ConsumerGroup
-	config   *messaging.KafkaClientConfig
+	config   *KafkaClientConfig
 	handler  MessageHandler
 	logger   *zap.Logger
 	topics   []string
@@ -28,13 +26,8 @@ type KafkaConsumer struct {
 	cancel   context.CancelFunc
 }
 
-// MessageHandler 消息处理器接口
-type MessageHandler interface {
-	HandleMessage(ctx context.Context, message *sarama.ConsumerMessage) error
-}
-
 // NewKafkaConsumer 创建Kafka消费者
-func NewKafkaConsumer(cfg *messaging.KafkaClientConfig, handler MessageHandler, logger *zap.Logger) (Consumer, error) {
+func NewKafkaConsumer(cfg *KafkaClientConfig, handler MessageHandler, logger *zap.Logger) (Consumer, error) {
 	consumerConfig := cfg.NewConsumerConfig()
 
 	consumer, err := sarama.NewConsumerGroup(cfg.Brokers, cfg.GroupID, consumerConfig)
@@ -52,7 +45,7 @@ func NewKafkaConsumer(cfg *messaging.KafkaClientConfig, handler MessageHandler, 
 		cfg.GetTopicName("user_updated"),
 	}
 
-	kc := &KafkaConsumer{
+	kc := &kafkaConsumer{
 		consumer: consumer,
 		config:   cfg,
 		handler:  handler,
@@ -70,7 +63,7 @@ func NewKafkaConsumer(cfg *messaging.KafkaClientConfig, handler MessageHandler, 
 }
 
 // Start 启动消费者
-func (c *KafkaConsumer) Start(ctx context.Context) error {
+func (c *kafkaConsumer) Start(ctx context.Context) error {
 	c.ctx, c.cancel = context.WithCancel(ctx)
 
 	c.wg.Add(1)
@@ -93,7 +86,7 @@ func (c *KafkaConsumer) Start(ctx context.Context) error {
 }
 
 // Stop 停止消费者
-func (c *KafkaConsumer) Stop() error {
+func (c *kafkaConsumer) Stop() error {
 	c.logger.Info("Stopping Kafka consumer")
 	if c.cancel != nil {
 		c.cancel()
@@ -103,19 +96,19 @@ func (c *KafkaConsumer) Stop() error {
 }
 
 // Setup 实现 sarama.ConsumerGroupHandler 接口
-func (c *KafkaConsumer) Setup(sarama.ConsumerGroupSession) error {
+func (c *kafkaConsumer) Setup(sarama.ConsumerGroupSession) error {
 	c.logger.Info("Consumer group session setup")
 	return nil
 }
 
 // Cleanup 实现 sarama.ConsumerGroupHandler 接口
-func (c *KafkaConsumer) Cleanup(sarama.ConsumerGroupSession) error {
+func (c *kafkaConsumer) Cleanup(sarama.ConsumerGroupSession) error {
 	c.logger.Info("Consumer group session cleanup")
 	return nil
 }
 
 // ConsumeClaim 实现 sarama.ConsumerGroupHandler 接口
-func (c *KafkaConsumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
+func (c *kafkaConsumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	for {
 		select {
 		case message := <-claim.Messages():

@@ -1,4 +1,4 @@
-package producer
+package messaging
 
 import (
 	"context"
@@ -8,28 +8,21 @@ import (
 	"time"
 
 	"github.com/IBM/sarama"
-	"github.com/zhwjimmy/user-center/internal/infrastructure/messaging"
+	"github.com/zhwjimmy/user-center/internal/kafka/event"
 	"go.uber.org/zap"
 )
 
-// Producer Kafka生产者接口
-type Producer interface {
-	PublishUserEvent(ctx context.Context, event interface{}) error
-	PublishUserEventAsync(ctx context.Context, event interface{}) error
-	Close() error
-}
-
-// KafkaProducer Kafka生产者实现
-type KafkaProducer struct {
+// kafkaProducer Kafka生产者实现
+type kafkaProducer struct {
 	producer sarama.AsyncProducer
-	config   *messaging.KafkaClientConfig
+	config   *KafkaClientConfig
 	logger   *zap.Logger
 	wg       sync.WaitGroup
 	closed   chan struct{}
 }
 
 // NewKafkaProducer 创建Kafka生产者
-func NewKafkaProducer(cfg *messaging.KafkaClientConfig, logger *zap.Logger) (Producer, error) {
+func NewKafkaProducer(cfg *KafkaClientConfig, logger *zap.Logger) (Producer, error) {
 	producerConfig := cfg.NewProducerConfig()
 
 	producer, err := sarama.NewAsyncProducer(cfg.Brokers, producerConfig)
@@ -37,7 +30,7 @@ func NewKafkaProducer(cfg *messaging.KafkaClientConfig, logger *zap.Logger) (Pro
 		return nil, fmt.Errorf("failed to create kafka producer: %w", err)
 	}
 
-	kp := &KafkaProducer{
+	kp := &kafkaProducer{
 		producer: producer,
 		config:   cfg,
 		logger:   logger,
@@ -58,7 +51,7 @@ func NewKafkaProducer(cfg *messaging.KafkaClientConfig, logger *zap.Logger) (Pro
 }
 
 // PublishUserEvent 同步发布用户事件
-func (p *KafkaProducer) PublishUserEvent(ctx context.Context, event interface{}) error {
+func (p *kafkaProducer) PublishUserEvent(ctx context.Context, event interface{}) error {
 	message, err := p.createMessage(event)
 	if err != nil {
 		return err
@@ -93,7 +86,7 @@ func (p *KafkaProducer) PublishUserEvent(ctx context.Context, event interface{})
 }
 
 // PublishUserEventAsync 异步发布用户事件
-func (p *KafkaProducer) PublishUserEventAsync(ctx context.Context, event interface{}) error {
+func (p *kafkaProducer) PublishUserEventAsync(ctx context.Context, event interface{}) error {
 	message, err := p.createMessage(event)
 	if err != nil {
 		return err
@@ -114,7 +107,7 @@ func (p *KafkaProducer) PublishUserEventAsync(ctx context.Context, event interfa
 }
 
 // createMessage 创建Kafka消息
-func (p *KafkaProducer) createMessage(eventData interface{}) (*sarama.ProducerMessage, error) {
+func (p *kafkaProducer) createMessage(eventData interface{}) (*sarama.ProducerMessage, error) {
 	// 序列化事件数据
 	jsonData, err := json.Marshal(eventData)
 	if err != nil {
@@ -123,7 +116,7 @@ func (p *KafkaProducer) createMessage(eventData interface{}) (*sarama.ProducerMe
 
 	// 确定主题名称
 	var topic string
-	switch event := eventData.(type) {
+	switch eventData.(type) {
 	case *event.UserRegisteredEvent:
 		topic = p.config.GetTopicName("user_registered")
 	case *event.UserLoggedInEvent:
@@ -161,7 +154,7 @@ func (p *KafkaProducer) createMessage(eventData interface{}) (*sarama.ProducerMe
 }
 
 // handleSuccesses 处理成功发送的消息
-func (p *KafkaProducer) handleSuccesses() {
+func (p *kafkaProducer) handleSuccesses() {
 	defer p.wg.Done()
 	for {
 		select {
@@ -178,7 +171,7 @@ func (p *KafkaProducer) handleSuccesses() {
 }
 
 // handleErrors 处理发送失败的消息
-func (p *KafkaProducer) handleErrors() {
+func (p *kafkaProducer) handleErrors() {
 	defer p.wg.Done()
 	for {
 		select {
@@ -194,7 +187,7 @@ func (p *KafkaProducer) handleErrors() {
 }
 
 // Close 关闭生产者
-func (p *KafkaProducer) Close() error {
+func (p *kafkaProducer) Close() error {
 	p.logger.Info("Closing Kafka producer")
 	close(p.closed)
 	p.producer.AsyncClose()

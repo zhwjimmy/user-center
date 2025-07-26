@@ -1,8 +1,11 @@
-package consumer
+package messaging
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 
+	"github.com/IBM/sarama"
 	"github.com/zhwjimmy/user-center/internal/kafka/event"
 	"go.uber.org/zap"
 )
@@ -18,6 +21,77 @@ func NewUserEventHandler(logger *zap.Logger) MessageHandler {
 	return &UserEventHandler{
 		logger: logger,
 	}
+}
+
+// HandleMessage 处理消息
+func (h *UserEventHandler) HandleMessage(ctx context.Context, message *sarama.ConsumerMessage) error {
+	// 获取事件类型
+	eventType := h.getEventType(message.Headers)
+
+	h.logger.Debug("Processing message",
+		zap.String("topic", message.Topic),
+		zap.String("event_type", eventType),
+		zap.Int32("partition", message.Partition),
+		zap.Int64("offset", message.Offset),
+	)
+
+	switch event.EventType(eventType) {
+	case event.UserRegistered:
+		var userEvent event.UserRegisteredEvent
+		if err := json.Unmarshal(message.Value, &userEvent); err != nil {
+			return fmt.Errorf("failed to unmarshal user registered event: %w", err)
+		}
+		return h.HandleUserRegistered(ctx, &userEvent)
+
+	case event.UserLoggedIn:
+		var userEvent event.UserLoggedInEvent
+		if err := json.Unmarshal(message.Value, &userEvent); err != nil {
+			return fmt.Errorf("failed to unmarshal user logged in event: %w", err)
+		}
+		return h.HandleUserLoggedIn(ctx, &userEvent)
+
+	case event.UserPasswordChanged:
+		var userEvent event.UserPasswordChangedEvent
+		if err := json.Unmarshal(message.Value, &userEvent); err != nil {
+			return fmt.Errorf("failed to unmarshal user password changed event: %w", err)
+		}
+		return h.HandleUserPasswordChanged(ctx, &userEvent)
+
+	case event.UserStatusChanged:
+		var userEvent event.UserStatusChangedEvent
+		if err := json.Unmarshal(message.Value, &userEvent); err != nil {
+			return fmt.Errorf("failed to unmarshal user status changed event: %w", err)
+		}
+		return h.HandleUserStatusChanged(ctx, &userEvent)
+
+	case event.UserDeleted:
+		var userEvent event.UserDeletedEvent
+		if err := json.Unmarshal(message.Value, &userEvent); err != nil {
+			return fmt.Errorf("failed to unmarshal user deleted event: %w", err)
+		}
+		return h.HandleUserDeleted(ctx, &userEvent)
+
+	case event.UserUpdated:
+		var userEvent event.UserUpdatedEvent
+		if err := json.Unmarshal(message.Value, &userEvent); err != nil {
+			return fmt.Errorf("failed to unmarshal user updated event: %w", err)
+		}
+		return h.HandleUserUpdated(ctx, &userEvent)
+
+	default:
+		h.logger.Warn("Unknown event type", zap.String("event_type", eventType))
+		return nil // 忽略未知事件类型
+	}
+}
+
+// getEventType 从消息头获取事件类型
+func (h *UserEventHandler) getEventType(headers []*sarama.RecordHeader) string {
+	for _, header := range headers {
+		if string(header.Key) == "event_type" {
+			return string(header.Value)
+		}
+	}
+	return ""
 }
 
 // HandleUserRegistered 处理用户注册事件
@@ -99,12 +173,11 @@ func (h *UserEventHandler) HandleUserLoggedIn(ctx context.Context, event *event.
 func (h *UserEventHandler) HandleUserPasswordChanged(ctx context.Context, event *event.UserPasswordChangedEvent) error {
 	h.logger.Info("Processing user password changed event",
 		zap.String("user_id", event.UserID),
-		zap.String("username", event.Username),
 		zap.String("request_id", event.RequestID),
 	)
 
 	// 业务逻辑处理
-	// 1. 发送密码变更通知邮件
+	// 1. 发送密码变更通知
 	if err := h.sendPasswordChangeNotification(ctx, event); err != nil {
 		h.logger.Error("Failed to send password change notification",
 			zap.String("user_id", event.UserID),
@@ -127,7 +200,6 @@ func (h *UserEventHandler) HandleUserPasswordChanged(ctx context.Context, event 
 func (h *UserEventHandler) HandleUserStatusChanged(ctx context.Context, event *event.UserStatusChangedEvent) error {
 	h.logger.Info("Processing user status changed event",
 		zap.String("user_id", event.UserID),
-		zap.String("username", event.Username),
 		zap.String("old_status", event.OldStatus),
 		zap.String("new_status", event.NewStatus),
 		zap.String("request_id", event.RequestID),
@@ -142,7 +214,7 @@ func (h *UserEventHandler) HandleUserStatusChanged(ctx context.Context, event *e
 		)
 	}
 
-	// 2. 更新相关缓存
+	// 2. 更新用户状态缓存
 	if err := h.updateUserStatusCache(ctx, event); err != nil {
 		h.logger.Error("Failed to update user status cache",
 			zap.String("user_id", event.UserID),
@@ -157,12 +229,11 @@ func (h *UserEventHandler) HandleUserStatusChanged(ctx context.Context, event *e
 func (h *UserEventHandler) HandleUserDeleted(ctx context.Context, event *event.UserDeletedEvent) error {
 	h.logger.Info("Processing user deleted event",
 		zap.String("user_id", event.UserID),
-		zap.String("username", event.Username),
 		zap.String("request_id", event.RequestID),
 	)
 
 	// 业务逻辑处理
-	// 1. 清理用户相关数据
+	// 1. 清理用户数据
 	if err := h.cleanupUserData(ctx, event); err != nil {
 		h.logger.Error("Failed to cleanup user data",
 			zap.String("user_id", event.UserID),
@@ -170,7 +241,7 @@ func (h *UserEventHandler) HandleUserDeleted(ctx context.Context, event *event.U
 		)
 	}
 
-	// 2. 发送账户删除确认邮件
+	// 2. 发送账户删除确认
 	if err := h.sendAccountDeletionConfirmation(ctx, event); err != nil {
 		h.logger.Error("Failed to send account deletion confirmation",
 			zap.String("user_id", event.UserID),
@@ -185,8 +256,6 @@ func (h *UserEventHandler) HandleUserDeleted(ctx context.Context, event *event.U
 func (h *UserEventHandler) HandleUserUpdated(ctx context.Context, event *event.UserUpdatedEvent) error {
 	h.logger.Info("Processing user updated event",
 		zap.String("user_id", event.UserID),
-		zap.String("username", event.Username),
-		zap.Any("changes", event.Changes),
 		zap.String("request_id", event.RequestID),
 	)
 
@@ -199,7 +268,7 @@ func (h *UserEventHandler) HandleUserUpdated(ctx context.Context, event *event.U
 		)
 	}
 
-	// 2. 同步用户信息到其他系统
+	// 2. 同步用户信息到外部系统
 	if err := h.syncUserInfoToExternalSystems(ctx, event); err != nil {
 		h.logger.Error("Failed to sync user info to external systems",
 			zap.String("user_id", event.UserID),
@@ -210,88 +279,74 @@ func (h *UserEventHandler) HandleUserUpdated(ctx context.Context, event *event.U
 	return nil
 }
 
-// 以下是具体的业务逻辑实现示例（实际实现需要根据业务需求调整）
+// 以下是具体的业务逻辑实现方法（简化版本）
 
 func (h *UserEventHandler) sendWelcomeEmail(ctx context.Context, event *event.UserRegisteredEvent) error {
-	// 实现发送欢迎邮件的逻辑
-	h.logger.Debug("Sending welcome email", zap.String("email", event.Email))
+	// TODO: 实现发送欢迎邮件逻辑
 	return nil
 }
 
 func (h *UserEventHandler) initializeUserSettings(ctx context.Context, event *event.UserRegisteredEvent) error {
-	// 实现初始化用户设置的逻辑
-	h.logger.Debug("Initializing user settings", zap.String("user_id", event.UserID))
+	// TODO: 实现初始化用户设置逻辑
 	return nil
 }
 
 func (h *UserEventHandler) recordUserRegistrationStats(ctx context.Context, event *event.UserRegisteredEvent) error {
-	// 实现记录用户注册统计的逻辑
-	h.logger.Debug("Recording user registration stats", zap.String("user_id", event.UserID))
+	// TODO: 实现记录用户注册统计逻辑
 	return nil
 }
 
 func (h *UserEventHandler) recordLoginLog(ctx context.Context, event *event.UserLoggedInEvent) error {
-	// 实现记录登录日志的逻辑
-	h.logger.Debug("Recording login log", zap.String("user_id", event.UserID))
+	// TODO: 实现记录登录日志逻辑
 	return nil
 }
 
 func (h *UserEventHandler) updateLastLoginTime(ctx context.Context, event *event.UserLoggedInEvent) error {
-	// 实现更新最后登录时间的逻辑
-	h.logger.Debug("Updating last login time", zap.String("user_id", event.UserID))
+	// TODO: 实现更新最后登录时间逻辑
 	return nil
 }
 
 func (h *UserEventHandler) checkAnomalousLogin(ctx context.Context, event *event.UserLoggedInEvent) error {
-	// 实现检查异常登录的逻辑
-	h.logger.Debug("Checking anomalous login", zap.String("user_id", event.UserID))
+	// TODO: 实现检查异常登录逻辑
 	return nil
 }
 
 func (h *UserEventHandler) sendPasswordChangeNotification(ctx context.Context, event *event.UserPasswordChangedEvent) error {
-	// 实现发送密码变更通知的逻辑
-	h.logger.Debug("Sending password change notification", zap.String("email", event.Email))
+	// TODO: 实现发送密码变更通知逻辑
 	return nil
 }
 
 func (h *UserEventHandler) recordSecurityLog(ctx context.Context, event *event.UserPasswordChangedEvent) error {
-	// 实现记录安全日志的逻辑
-	h.logger.Debug("Recording security log", zap.String("user_id", event.UserID))
+	// TODO: 实现记录安全日志逻辑
 	return nil
 }
 
 func (h *UserEventHandler) sendStatusChangeNotification(ctx context.Context, event *event.UserStatusChangedEvent) error {
-	// 实现发送状态变更通知的逻辑
-	h.logger.Debug("Sending status change notification", zap.String("email", event.Email))
+	// TODO: 实现发送状态变更通知逻辑
 	return nil
 }
 
 func (h *UserEventHandler) updateUserStatusCache(ctx context.Context, event *event.UserStatusChangedEvent) error {
-	// 实现更新用户状态缓存的逻辑
-	h.logger.Debug("Updating user status cache", zap.String("user_id", event.UserID))
+	// TODO: 实现更新用户状态缓存逻辑
 	return nil
 }
 
 func (h *UserEventHandler) cleanupUserData(ctx context.Context, event *event.UserDeletedEvent) error {
-	// 实现清理用户数据的逻辑
-	h.logger.Debug("Cleaning up user data", zap.String("user_id", event.UserID))
+	// TODO: 实现清理用户数据逻辑
 	return nil
 }
 
 func (h *UserEventHandler) sendAccountDeletionConfirmation(ctx context.Context, event *event.UserDeletedEvent) error {
-	// 实现发送账户删除确认邮件的逻辑
-	h.logger.Debug("Sending account deletion confirmation", zap.String("email", event.Email))
+	// TODO: 实现发送账户删除确认逻辑
 	return nil
 }
 
 func (h *UserEventHandler) updateUserCache(ctx context.Context, event *event.UserUpdatedEvent) error {
-	// 实现更新用户缓存的逻辑
-	h.logger.Debug("Updating user cache", zap.String("user_id", event.UserID))
+	// TODO: 实现更新用户缓存逻辑
 	return nil
 }
 
 func (h *UserEventHandler) syncUserInfoToExternalSystems(ctx context.Context, event *event.UserUpdatedEvent) error {
-	// 实现同步用户信息到外部系统的逻辑
-	h.logger.Debug("Syncing user info to external systems", zap.String("user_id", event.UserID))
+	// TODO: 实现同步用户信息到外部系统逻辑
 	return nil
 }

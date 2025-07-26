@@ -4,15 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/zhwjimmy/user-center/internal/kafka/consumer"
-	"github.com/zhwjimmy/user-center/internal/kafka/producer"
 	"go.uber.org/zap"
 )
 
 // kafkaService 实现 Service 接口
 type kafkaService struct {
-	producer producer.Producer
-	consumer consumer.Consumer
+	producer Producer
+	consumer Consumer
 	logger   *zap.Logger
 }
 
@@ -22,16 +20,16 @@ var _ Service = (*kafkaService)(nil)
 // NewKafkaService 创建 Kafka 服务
 func NewKafkaService(cfg *KafkaClientConfig, logger *zap.Logger) (Service, error) {
 	// 创建生产者
-	prod, err := producer.NewKafkaProducer(cfg, logger)
+	prod, err := NewKafkaProducer(cfg, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create kafka producer: %w", err)
 	}
 
 	// 创建消息处理器
-	handler := consumer.NewUserEventHandler(logger)
+	handler := NewUserEventHandler(logger)
 
 	// 创建消费者
-	cons, err := consumer.NewKafkaConsumer(cfg, handler, logger)
+	cons, err := NewKafkaConsumer(cfg, handler, logger)
 	if err != nil {
 		prod.Close() // 清理已创建的生产者
 		return nil, fmt.Errorf("failed to create kafka consumer: %w", err)

@@ -113,8 +113,7 @@ func New(
 		users := admin.Group("/users")
 		{
 			users.GET("/", userHandler.ListUsers)
-			users.PUT("/:id/status", userHandler.UpdateUserStatus)
-			users.DELETE("/:id", userHandler.DeleteUser)
+			// TODO: 实现 UpdateUserStatus 和 DeleteUser 方法
 		}
 	}
 
