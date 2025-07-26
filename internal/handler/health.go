@@ -1,38 +1,29 @@
 package handler
 
 import (
-	"context"
-	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/zhwjimmy/user-center/internal/cache"
-	"github.com/zhwjimmy/user-center/internal/database"
 	"github.com/zhwjimmy/user-center/internal/dto"
+	"github.com/zhwjimmy/user-center/internal/infrastructure"
 	"go.uber.org/zap"
 )
 
 // HealthHandler handles health check requests
 type HealthHandler struct {
-	logger   *zap.Logger
-	postgres *database.PostgreSQL
-	mongodb  *database.MongoDB
-	redis    *cache.Redis
+	logger *zap.Logger
+	infra  *infrastructure.Manager
 }
 
 // NewHealthHandler creates a new health handler
 func NewHealthHandler(
 	logger *zap.Logger,
-	postgres *database.PostgreSQL,
-	mongodb *database.MongoDB,
-	redis *cache.Redis,
+	infra *infrastructure.Manager,
 ) *HealthHandler {
 	return &HealthHandler{
-		logger:   logger,
-		postgres: postgres,
-		mongodb:  mongodb,
-		redis:    redis,
+		logger: logger,
+		infra:  infra,
 	}
 }
 
@@ -46,45 +37,25 @@ func NewHealthHandler(
 // @Failure 503 {object} dto.HealthResponse
 // @Router /health [get]
 func (h *HealthHandler) Health(c *gin.Context) {
+	status := h.infra.Health(c.Request.Context())
+
 	checks := make(map[string]string)
-	overallStatus := "healthy"
-
-	// Check PostgreSQL
-	if err := h.checkPostgreSQL(); err != nil {
-		checks["postgresql"] = "unhealthy: " + err.Error()
-		overallStatus = "unhealthy"
-		h.logger.Error("PostgreSQL health check failed", zap.Error(err))
-	} else {
-		checks["postgresql"] = "healthy"
-	}
-
-	// Check MongoDB
-	if err := h.checkMongoDB(); err != nil {
-		checks["mongodb"] = "unhealthy: " + err.Error()
-		overallStatus = "unhealthy"
-		h.logger.Error("MongoDB health check failed", zap.Error(err))
-	} else {
-		checks["mongodb"] = "healthy"
-	}
-
-	// Check Redis
-	if err := h.checkRedis(); err != nil {
-		checks["redis"] = "unhealthy: " + err.Error()
-		overallStatus = "unhealthy"
-		h.logger.Error("Redis health check failed", zap.Error(err))
-	} else {
-		checks["redis"] = "healthy"
+	for service, serviceStatus := range status.Services {
+		checks[service] = serviceStatus.Status
+		if serviceStatus.Message != "" {
+			checks[service] += ": " + serviceStatus.Message
+		}
 	}
 
 	response := dto.HealthResponse{
-		Status:    overallStatus,
+		Status:    status.Overall,
 		Version:   "1.0.0",
-		Timestamp: time.Now().UTC().Format(time.RFC3339),
+		Timestamp: status.Timestamp.Format(time.RFC3339),
 		Checks:    checks,
 	}
 
 	statusCode := http.StatusOK
-	if overallStatus == "unhealthy" {
+	if status.Overall != "healthy" {
 		statusCode = http.StatusServiceUnavailable
 	}
 
@@ -101,46 +72,28 @@ func (h *HealthHandler) Health(c *gin.Context) {
 // @Failure 503 {object} dto.HealthResponse
 // @Router /ready [get]
 func (h *HealthHandler) Ready(c *gin.Context) {
-	// For readiness, we check if all critical dependencies are available
-	checks := make(map[string]string)
-	overallStatus := "ready"
-
-	// Check PostgreSQL (critical for user operations)
-	if err := h.checkPostgreSQL(); err != nil {
-		checks["postgresql"] = "not ready: " + err.Error()
-		overallStatus = "not ready"
-	} else {
-		checks["postgresql"] = "ready"
+	// 使用基础设施管理器的就绪检查
+	if err := h.infra.Ready(c.Request.Context()); err != nil {
+		h.logger.Error("Service not ready", zap.Error(err))
+		c.JSON(http.StatusServiceUnavailable, dto.HealthResponse{
+			Status:    "not ready",
+			Version:   "1.0.0",
+			Timestamp: time.Now().UTC().Format(time.RFC3339),
+			Checks: map[string]string{
+				"service": "not ready: " + err.Error(),
+			},
+		})
+		return
 	}
 
-	// Check Redis (critical for caching and sessions)
-	if err := h.checkRedis(); err != nil {
-		checks["redis"] = "not ready: " + err.Error()
-		overallStatus = "not ready"
-	} else {
-		checks["redis"] = "ready"
-	}
-
-	// MongoDB is not critical for basic operations, so we don't fail readiness for it
-	if err := h.checkMongoDB(); err != nil {
-		checks["mongodb"] = "degraded: " + err.Error()
-	} else {
-		checks["mongodb"] = "ready"
-	}
-
-	response := dto.HealthResponse{
-		Status:    overallStatus,
+	c.JSON(http.StatusOK, dto.HealthResponse{
+		Status:    "ready",
 		Version:   "1.0.0",
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
-		Checks:    checks,
-	}
-
-	statusCode := http.StatusOK
-	if overallStatus == "not ready" {
-		statusCode = http.StatusServiceUnavailable
-	}
-
-	c.JSON(statusCode, response)
+		Checks: map[string]string{
+			"service": "ready",
+		},
+	})
 }
 
 // Live handles liveness probe requests
@@ -163,42 +116,4 @@ func (h *HealthHandler) Live(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, response)
-}
-
-// checkPostgreSQL checks PostgreSQL connectivity
-func (h *HealthHandler) checkPostgreSQL() error {
-	if h.postgres == nil {
-		return fmt.Errorf("postgres client not initialized")
-	}
-
-	db, err := h.postgres.DB.DB()
-	if err != nil {
-		return err
-	}
-
-	return db.Ping()
-}
-
-// checkMongoDB checks MongoDB connectivity
-func (h *HealthHandler) checkMongoDB() error {
-	if h.mongodb == nil {
-		return fmt.Errorf("mongodb client not initialized")
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	return h.mongodb.Client.Ping(ctx, nil)
-}
-
-// checkRedis checks Redis connectivity
-func (h *HealthHandler) checkRedis() error {
-	if h.redis == nil {
-		return fmt.Errorf("redis client not initialized")
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	return h.redis.Client.Ping(ctx).Err()
 }

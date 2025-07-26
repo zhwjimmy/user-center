@@ -1,0 +1,24 @@
+package messaging
+
+import (
+	"context"
+)
+
+// Service 消息队列服务接口
+type Service interface {
+	GetProducer() Producer
+	GetConsumer() Consumer
+	Start(ctx context.Context) error
+	Stop() error
+}
+
+// Producer 生产者接口
+type Producer interface {
+	Close() error
+}
+
+// Consumer 消费者接口
+type Consumer interface {
+	Start(ctx context.Context) error
+	Stop() error
+}

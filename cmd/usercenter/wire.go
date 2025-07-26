@@ -8,8 +8,8 @@ import (
 	"github.com/google/wire"
 	"github.com/zhwjimmy/user-center/internal/cache"
 	"github.com/zhwjimmy/user-center/internal/config"
-	"github.com/zhwjimmy/user-center/internal/database"
 	"github.com/zhwjimmy/user-center/internal/handler"
+	"github.com/zhwjimmy/user-center/internal/infrastructure/messaging"
 	"github.com/zhwjimmy/user-center/internal/kafka"
 	kafkaConfig "github.com/zhwjimmy/user-center/internal/kafka/config"
 	"github.com/zhwjimmy/user-center/internal/middleware"
@@ -20,6 +20,8 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gorm.io/gorm"
+
+	"github.com/zhwjimmy/user-center/internal/infrastructure"
 )
 
 type (
@@ -80,9 +82,24 @@ func provideRecoveryMiddleware(logger *zap.Logger) middleware.RecoveryMiddleware
 	return middleware.RecoveryMiddleware(middleware.NewRecoveryMiddleware(logger))
 }
 
-// provideGormDB extracts *gorm.DB from *database.PostgreSQL
-func provideGormDB(pg *database.PostgreSQL) *gorm.DB {
-	return pg.DB
+// provideInfrastructureManager 创建基础设施管理器
+func provideInfrastructureManager(cfg *config.Config, logger *zap.Logger) (*infrastructure.Manager, error) {
+	return infrastructure.NewManager(cfg, logger)
+}
+
+// provideGormDB 从基础设施管理器获取 GORM DB
+func provideGormDB(manager *infrastructure.Manager) *gorm.DB {
+	return manager.GetPostgreSQL().DB
+}
+
+// provideCache 从基础设施管理器获取缓存
+func provideCache(manager *infrastructure.Manager) cache.Cache {
+	return manager.GetRedis()
+}
+
+// provideKafkaService 从基础设施管理器获取 Kafka 服务
+func provideKafkaService(manager *infrastructure.Manager) messaging.Service {
+	return manager.GetKafka()
 }
 
 // provideServer creates a new server instance
@@ -127,14 +144,19 @@ func InitializeApp() (*server.Server, error) {
 		// JWT Manager
 		provideJWT,
 
-		// Database connections
-		database.NewPostgreSQL,
-		provideGormDB,
-		database.NewMongoDB,
-		cache.NewRedis,
+		// Infrastructure Manager
+		provideInfrastructureManager,
 
-		// Kafka
-		kafka.NewKafkaService,
+		// Extract connections from manager
+		provideGormDB,
+		provideCache,
+		provideKafkaService,
+
+		// Cache services
+		cache.NewUserCache,
+		cache.NewSessionCache,
+		cache.NewRateLimitCache,
+		cache.NewTokenCache,
 
 		// Repositories
 		repository.NewUserRepository,

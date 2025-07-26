@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -12,7 +11,8 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"github.com/zhwjimmy/user-center/internal/config"
 	"github.com/zhwjimmy/user-center/internal/handler"
-	"github.com/zhwjimmy/user-center/internal/kafka"
+	"github.com/zhwjimmy/user-center/internal/infrastructure"
+	"github.com/zhwjimmy/user-center/internal/infrastructure/messaging"
 	"github.com/zhwjimmy/user-center/internal/middleware"
 	"go.uber.org/zap"
 )
@@ -22,13 +22,15 @@ type Server struct {
 	*gin.Engine
 	config       *config.Config
 	logger       *zap.Logger
-	kafkaService kafka.Service
+	infra        *infrastructure.Manager
+	kafkaService messaging.Service
 }
 
 // New creates a new server instance
 func New(
 	cfg *config.Config,
 	logger *zap.Logger,
+	infra *infrastructure.Manager,
 	userHandler *handler.UserHandler,
 	healthHandler *handler.HealthHandler,
 	authMiddleware *middleware.AuthMiddleware,
@@ -37,7 +39,7 @@ func New(
 	requestIDMiddleware middleware.RequestIDMiddleware,
 	loggerMiddleware middleware.LoggerMiddleware,
 	recoveryMiddleware middleware.RecoveryMiddleware,
-	kafkaService kafka.Service,
+	kafkaService messaging.Service,
 ) *Server {
 	// Set Gin mode
 	gin.SetMode(cfg.Server.Mode)
@@ -108,46 +110,49 @@ func New(
 	admin.Use(rateLimitMiddleware.RateLimitByUser())
 	{
 		// Admin user management
-		adminUsers := admin.Group("/users")
+		users := admin.Group("/users")
 		{
-			adminUsers.GET("/", userHandler.ListUsers)
-			adminUsers.GET("/:id", userHandler.GetUser)
-			// Additional admin-only endpoints can be added here
+			users.GET("/", userHandler.ListUsers)
+			users.PUT("/:id/status", userHandler.UpdateUserStatus)
+			users.DELETE("/:id", userHandler.DeleteUser)
 		}
 	}
 
-	// Metrics endpoint for Prometheus
+	// Metrics endpoint
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	return &Server{
 		Engine:       r,
 		config:       cfg,
 		logger:       logger,
+		infra:        infra,
 		kafkaService: kafkaService,
 	}
 }
 
-// Start starts the HTTP server
+// Start starts the server
 func (s *Server) Start() error {
+	// 启动基础设施服务
+	if err := s.infra.Start(context.Background()); err != nil {
+		return fmt.Errorf("failed to start infrastructure: %w", err)
+	}
+
 	addr := fmt.Sprintf("%s:%d", s.config.Server.Host, s.config.Server.Port)
-	s.logger.Info("Starting HTTP server",
-		zap.String("address", addr),
-		zap.String("mode", s.config.Server.Mode),
-	)
-	return s.Run(addr)
+	s.logger.Info("Starting server", zap.String("addr", addr))
+
+	return s.Engine.Run(addr)
 }
 
 // Shutdown gracefully shuts down the server
 func (s *Server) Shutdown(ctx context.Context) error {
-	s.logger.Info("Shutting down HTTP server")
+	s.logger.Info("Shutting down server")
 
-	// Create HTTP server instance for graceful shutdown
-	srv := &http.Server{
-		Addr:    fmt.Sprintf("%s:%d", s.config.Server.Host, s.config.Server.Port),
-		Handler: s.Engine,
+	// 停止基础设施服务
+	if err := s.infra.Stop(ctx); err != nil {
+		s.logger.Error("Failed to stop infrastructure", zap.Error(err))
 	}
 
-	return srv.Shutdown(ctx)
+	return nil
 }
 
 // GetLogger returns the logger instance
@@ -155,7 +160,7 @@ func (s *Server) GetLogger() *zap.Logger {
 	return s.logger
 }
 
-// GetShutdownTimeout returns the shutdown timeout from config
+// GetShutdownTimeout returns the shutdown timeout
 func (s *Server) GetShutdownTimeout() time.Duration {
 	return s.config.Server.ShutdownTimeout
 }
