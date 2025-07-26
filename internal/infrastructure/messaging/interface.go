@@ -24,3 +24,12 @@ type Consumer interface {
 	Start(ctx context.Context) error
 	Stop() error
 }
+
+// Event 通用事件接口
+type Event interface {
+	GetTopic() string
+	GetEventType() string
+	GetUserID() string
+	GetRequestID() string
+	GetTimestamp() string
+}

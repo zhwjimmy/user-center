@@ -2,10 +2,13 @@ package messaging
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sync"
 
 	"github.com/IBM/sarama"
+	"github.com/zhwjimmy/user-center/internal/events/handlers"
+	"github.com/zhwjimmy/user-center/internal/events/types"
 	"go.uber.org/zap"
 )
 
@@ -14,11 +17,21 @@ type MessageHandler interface {
 	HandleMessage(ctx context.Context, message *sarama.ConsumerMessage) error
 }
 
+// EventHandlers 事件处理器集合
+type EventHandlers struct {
+	UserRegistered      *handlers.UserRegisteredHandler
+	UserLoggedIn        *handlers.UserLoggedInHandler
+	UserPasswordChanged *handlers.UserPasswordChangedHandler
+	UserStatusChanged   *handlers.UserStatusChangedHandler
+	UserDeleted         *handlers.UserDeletedHandler
+	UserUpdated         *handlers.UserUpdatedHandler
+}
+
 // kafkaConsumer Kafka消费者实现
 type kafkaConsumer struct {
 	consumer sarama.ConsumerGroup
 	config   *KafkaClientConfig
-	handler  MessageHandler
+	handlers *EventHandlers
 	logger   *zap.Logger
 	topics   []string
 	wg       sync.WaitGroup
@@ -27,7 +40,7 @@ type kafkaConsumer struct {
 }
 
 // NewKafkaConsumer 创建Kafka消费者
-func NewKafkaConsumer(cfg *KafkaClientConfig, handler MessageHandler, logger *zap.Logger) (Consumer, error) {
+func NewKafkaConsumer(cfg *KafkaClientConfig, handlers *EventHandlers, logger *zap.Logger) (Consumer, error) {
 	consumerConfig := cfg.NewConsumerConfig()
 
 	consumer, err := sarama.NewConsumerGroup(cfg.Brokers, cfg.GroupID, consumerConfig)
@@ -48,7 +61,7 @@ func NewKafkaConsumer(cfg *KafkaClientConfig, handler MessageHandler, logger *za
 	kc := &kafkaConsumer{
 		consumer: consumer,
 		config:   cfg,
-		handler:  handler,
+		handlers: handlers,
 		logger:   logger,
 		topics:   topics,
 	}
@@ -123,7 +136,7 @@ func (c *kafkaConsumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim 
 			)
 
 			// 处理消息
-			if err := c.handler.HandleMessage(session.Context(), message); err != nil {
+			if err := c.handleMessage(session.Context(), message); err != nil {
 				c.logger.Error("Failed to handle message",
 					zap.String("topic", message.Topic),
 					zap.Int32("partition", message.Partition),
@@ -141,4 +154,75 @@ func (c *kafkaConsumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim 
 			return nil
 		}
 	}
+}
+
+// handleMessage 处理消息
+func (c *kafkaConsumer) handleMessage(ctx context.Context, message *sarama.ConsumerMessage) error {
+	// 获取事件类型
+	eventType := c.getEventType(message.Headers)
+
+	c.logger.Debug("Processing message",
+		zap.String("topic", message.Topic),
+		zap.String("event_type", eventType),
+		zap.Int32("partition", message.Partition),
+		zap.Int64("offset", message.Offset),
+	)
+
+	switch types.EventType(eventType) {
+	case types.UserRegistered:
+		var userEvent types.UserRegisteredEvent
+		if err := json.Unmarshal(message.Value, &userEvent); err != nil {
+			return fmt.Errorf("failed to unmarshal user registered event: %w", err)
+		}
+		return c.handlers.UserRegistered.Handle(ctx, &userEvent)
+
+	case types.UserLoggedIn:
+		var userEvent types.UserLoggedInEvent
+		if err := json.Unmarshal(message.Value, &userEvent); err != nil {
+			return fmt.Errorf("failed to unmarshal user logged in event: %w", err)
+		}
+		return c.handlers.UserLoggedIn.Handle(ctx, &userEvent)
+
+	case types.UserPasswordChanged:
+		var userEvent types.UserPasswordChangedEvent
+		if err := json.Unmarshal(message.Value, &userEvent); err != nil {
+			return fmt.Errorf("failed to unmarshal user password changed event: %w", err)
+		}
+		return c.handlers.UserPasswordChanged.Handle(ctx, &userEvent)
+
+	case types.UserStatusChanged:
+		var userEvent types.UserStatusChangedEvent
+		if err := json.Unmarshal(message.Value, &userEvent); err != nil {
+			return fmt.Errorf("failed to unmarshal user status changed event: %w", err)
+		}
+		return c.handlers.UserStatusChanged.Handle(ctx, &userEvent)
+
+	case types.UserDeleted:
+		var userEvent types.UserDeletedEvent
+		if err := json.Unmarshal(message.Value, &userEvent); err != nil {
+			return fmt.Errorf("failed to unmarshal user deleted event: %w", err)
+		}
+		return c.handlers.UserDeleted.Handle(ctx, &userEvent)
+
+	case types.UserUpdated:
+		var userEvent types.UserUpdatedEvent
+		if err := json.Unmarshal(message.Value, &userEvent); err != nil {
+			return fmt.Errorf("failed to unmarshal user updated event: %w", err)
+		}
+		return c.handlers.UserUpdated.Handle(ctx, &userEvent)
+
+	default:
+		c.logger.Warn("Unknown event type", zap.String("event_type", eventType))
+		return nil // 忽略未知事件类型
+	}
+}
+
+// getEventType 从消息头获取事件类型
+func (c *kafkaConsumer) getEventType(headers []*sarama.RecordHeader) string {
+	for _, header := range headers {
+		if string(header.Key) == "event_type" {
+			return string(header.Value)
+		}
+	}
+	return ""
 }

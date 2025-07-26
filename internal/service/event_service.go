@@ -4,143 +4,147 @@ import (
 	"context"
 
 	"github.com/gin-gonic/gin"
-	"github.com/zhwjimmy/user-center/internal/infrastructure/messaging"
-	"github.com/zhwjimmy/user-center/internal/kafka/event"
-	"github.com/zhwjimmy/user-center/internal/model"
+	"github.com/zhwjimmy/user-center/internal/events/publisher"
+	"github.com/zhwjimmy/user-center/internal/events/types"
 	"go.uber.org/zap"
 )
 
-// EventService provides event publishing services
+// EventService 事件服务
 type EventService struct {
-	kafkaService messaging.Service
-	logger       *zap.Logger
+	publisher publisher.EventPublisher
+	logger    *zap.Logger
 }
 
-// NewEventService creates a new event service
-func NewEventService(kafkaService messaging.Service, logger *zap.Logger) *EventService {
+// NewEventService 创建事件服务
+func NewEventService(publisher publisher.EventPublisher, logger *zap.Logger) *EventService {
 	return &EventService{
-		kafkaService: kafkaService,
-		logger:       logger,
+		publisher: publisher,
+		logger:    logger,
 	}
 }
 
-// PublishUserRegisteredEvent publishes a user registered event
-func (s *EventService) PublishUserRegisteredEvent(ctx context.Context, user *model.User) error {
-	requestID := s.getRequestID(ctx)
-
-	userEvent := &event.UserRegisteredEvent{
-		BaseEvent: event.NewBaseEvent(
-			event.UserRegistered,
+// PublishUserRegistered 发布用户注册事件
+func (s *EventService) PublishUserRegistered(ctx context.Context, userID string, username, email string) error {
+	event := &types.UserRegisteredEvent{
+		BaseEvent: types.NewBaseEvent(
+			types.UserRegistered,
 			"user-center",
-			requestID,
-			user.ID,
+			s.getRequestID(ctx),
+			userID,
 		),
-		Username:  user.Username,
-		Email:     user.Email,
-		FirstName: s.getStringValue(user.FirstName),
-		LastName:  s.getStringValue(user.LastName),
+		Username: username,
+		Email:    email,
 	}
 
-	return s.kafkaService.GetProducer().PublishUserEventAsync(ctx, userEvent)
+	s.logger.Info("Publishing user registered event",
+		zap.String("user_id", userID),
+		zap.String("username", username),
+		zap.String("email", email),
+	)
+
+	return s.publisher.PublishUserRegistered(ctx, event)
 }
 
-// PublishUserLoggedInEvent publishes a user logged in event
-func (s *EventService) PublishUserLoggedInEvent(ctx context.Context, user *model.User, ipAddress, userAgent string) error {
-	requestID := s.getRequestID(ctx)
-
-	userEvent := &event.UserLoggedInEvent{
-		BaseEvent: event.NewBaseEvent(
-			event.UserLoggedIn,
+// PublishUserLoggedIn 发布用户登录事件
+func (s *EventService) PublishUserLoggedIn(ctx context.Context, userID, username, ipAddress string) error {
+	event := &types.UserLoggedInEvent{
+		BaseEvent: types.NewBaseEvent(
+			types.UserLoggedIn,
 			"user-center",
-			requestID,
-			user.ID,
+			s.getRequestID(ctx),
+			userID,
 		),
-		Username:  user.Username,
-		Email:     user.Email,
-		IPAddress: ipAddress,
-		UserAgent: userAgent,
-	}
-
-	return s.kafkaService.GetProducer().PublishUserEventAsync(ctx, userEvent)
-}
-
-// PublishUserPasswordChangedEvent publishes a user password changed event
-func (s *EventService) PublishUserPasswordChangedEvent(ctx context.Context, user *model.User, ipAddress string) error {
-	requestID := s.getRequestID(ctx)
-
-	userEvent := &event.UserPasswordChangedEvent{
-		BaseEvent: event.NewBaseEvent(
-			event.UserPasswordChanged,
-			"user-center",
-			requestID,
-			user.ID,
-		),
-		Username:  user.Username,
-		Email:     user.Email,
+		Username:  username,
 		IPAddress: ipAddress,
 	}
 
-	return s.kafkaService.GetProducer().PublishUserEventAsync(ctx, userEvent)
+	s.logger.Info("Publishing user logged in event",
+		zap.String("user_id", userID),
+		zap.String("username", username),
+		zap.String("ip_address", ipAddress),
+	)
+
+	return s.publisher.PublishUserLoggedIn(ctx, event)
 }
 
-// PublishUserStatusChangedEvent publishes a user status changed event
-func (s *EventService) PublishUserStatusChangedEvent(ctx context.Context, user *model.User, oldStatus, newStatus string) error {
-	requestID := s.getRequestID(ctx)
-
-	userEvent := &event.UserStatusChangedEvent{
-		BaseEvent: event.NewBaseEvent(
-			event.UserStatusChanged,
+// PublishUserPasswordChanged 发布用户密码变更事件
+func (s *EventService) PublishUserPasswordChanged(ctx context.Context, userID string) error {
+	event := &types.UserPasswordChangedEvent{
+		BaseEvent: types.NewBaseEvent(
+			types.UserPasswordChanged,
 			"user-center",
-			requestID,
-			user.ID,
+			s.getRequestID(ctx),
+			userID,
 		),
-		Username:  user.Username,
-		Email:     user.Email,
+	}
+
+	s.logger.Info("Publishing user password changed event",
+		zap.String("user_id", userID),
+	)
+
+	return s.publisher.PublishUserPasswordChanged(ctx, event)
+}
+
+// PublishUserStatusChanged 发布用户状态变更事件
+func (s *EventService) PublishUserStatusChanged(ctx context.Context, userID, oldStatus, newStatus string) error {
+	event := &types.UserStatusChangedEvent{
+		BaseEvent: types.NewBaseEvent(
+			types.UserStatusChanged,
+			"user-center",
+			s.getRequestID(ctx),
+			userID,
+		),
 		OldStatus: oldStatus,
 		NewStatus: newStatus,
 	}
 
-	return s.kafkaService.GetProducer().PublishUserEventAsync(ctx, userEvent)
+	s.logger.Info("Publishing user status changed event",
+		zap.String("user_id", userID),
+		zap.String("old_status", oldStatus),
+		zap.String("new_status", newStatus),
+	)
+
+	return s.publisher.PublishUserStatusChanged(ctx, event)
 }
 
-// PublishUserDeletedEvent publishes a user deleted event
-func (s *EventService) PublishUserDeletedEvent(ctx context.Context, user *model.User) error {
-	requestID := s.getRequestID(ctx)
-
-	userEvent := &event.UserDeletedEvent{
-		BaseEvent: event.NewBaseEvent(
-			event.UserDeleted,
+// PublishUserDeleted 发布用户删除事件
+func (s *EventService) PublishUserDeleted(ctx context.Context, userID string) error {
+	event := &types.UserDeletedEvent{
+		BaseEvent: types.NewBaseEvent(
+			types.UserDeleted,
 			"user-center",
-			requestID,
-			user.ID,
+			s.getRequestID(ctx),
+			userID,
 		),
-		Username: user.Username,
-		Email:    user.Email,
 	}
 
-	return s.kafkaService.GetProducer().PublishUserEventAsync(ctx, userEvent)
+	s.logger.Info("Publishing user deleted event",
+		zap.String("user_id", userID),
+	)
+
+	return s.publisher.PublishUserDeleted(ctx, event)
 }
 
-// PublishUserUpdatedEvent publishes a user updated event
-func (s *EventService) PublishUserUpdatedEvent(ctx context.Context, user *model.User, changes map[string]interface{}) error {
-	requestID := s.getRequestID(ctx)
-
-	userEvent := &event.UserUpdatedEvent{
-		BaseEvent: event.NewBaseEvent(
-			event.UserUpdated,
+// PublishUserUpdated 发布用户更新事件
+func (s *EventService) PublishUserUpdated(ctx context.Context, userID string) error {
+	event := &types.UserUpdatedEvent{
+		BaseEvent: types.NewBaseEvent(
+			types.UserUpdated,
 			"user-center",
-			requestID,
-			user.ID,
+			s.getRequestID(ctx),
+			userID,
 		),
-		Username: user.Username,
-		Email:    user.Email,
-		Changes:  changes,
+		Changes: make(map[string]interface{}),
 	}
 
-	return s.kafkaService.GetProducer().PublishUserEventAsync(ctx, userEvent)
+	s.logger.Info("Publishing user updated event",
+		zap.String("user_id", userID),
+	)
+
+	return s.publisher.PublishUserUpdated(ctx, event)
 }
 
-// getRequestID extracts request ID from context
+// getRequestID 获取请求ID
 func (s *EventService) getRequestID(ctx context.Context) string {
 	if ginCtx, ok := ctx.(*gin.Context); ok {
 		if requestID, exists := ginCtx.Get("request_id"); exists {
@@ -150,12 +154,4 @@ func (s *EventService) getRequestID(ctx context.Context) string {
 		}
 	}
 	return ""
-}
-
-// getStringValue safely gets string value from pointer
-func (s *EventService) getStringValue(ptr *string) string {
-	if ptr == nil {
-		return ""
-	}
-	return *ptr
 }

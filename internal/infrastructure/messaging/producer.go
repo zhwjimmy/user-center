@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/IBM/sarama"
-	"github.com/zhwjimmy/user-center/internal/kafka/event"
 	"go.uber.org/zap"
 )
 
@@ -114,23 +113,13 @@ func (p *kafkaProducer) createMessage(eventData interface{}) (*sarama.ProducerMe
 		return nil, fmt.Errorf("failed to marshal event data: %w", err)
 	}
 
-	// 确定主题名称
+	// 获取主题名称
 	var topic string
-	switch eventData.(type) {
-	case *event.UserRegisteredEvent:
-		topic = p.config.GetTopicName("user_registered")
-	case *event.UserLoggedInEvent:
-		topic = p.config.GetTopicName("user_logged_in")
-	case *event.UserPasswordChangedEvent:
-		topic = p.config.GetTopicName("user_password_changed")
-	case *event.UserStatusChangedEvent:
-		topic = p.config.GetTopicName("user_status_changed")
-	case *event.UserDeletedEvent:
-		topic = p.config.GetTopicName("user_deleted")
-	case *event.UserUpdatedEvent:
-		topic = p.config.GetTopicName("user_updated")
-	default:
-		return nil, fmt.Errorf("unsupported event type: %T", eventData)
+	if event, ok := eventData.(Event); ok {
+		topic = event.GetTopic()
+	} else {
+		// 如果不是 Event 接口，尝试从配置中获取默认主题
+		topic = p.config.GetTopicName("user_events")
 	}
 
 	// 创建消息
@@ -148,6 +137,14 @@ func (p *kafkaProducer) createMessage(eventData interface{}) (*sarama.ProducerMe
 				Value: []byte(time.Now().Format(time.RFC3339)),
 			},
 		},
+	}
+
+	// 如果事件实现了 Event 接口，添加事件类型头
+	if event, ok := eventData.(Event); ok {
+		message.Headers = append(message.Headers, sarama.RecordHeader{
+			Key:   []byte("event_type"),
+			Value: []byte(event.GetEventType()),
+		})
 	}
 
 	return message, nil

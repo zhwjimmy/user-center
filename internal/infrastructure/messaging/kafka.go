@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/zhwjimmy/user-center/internal/events/handlers"
 	"go.uber.org/zap"
 )
 
@@ -25,11 +26,18 @@ func NewKafkaService(cfg *KafkaClientConfig, logger *zap.Logger) (Service, error
 		return nil, fmt.Errorf("failed to create kafka producer: %w", err)
 	}
 
-	// 创建消息处理器
-	handler := NewUserEventHandler(logger)
+	// 创建事件处理器
+	eventHandlers := &EventHandlers{
+		UserRegistered:      handlers.NewUserRegisteredHandler(logger),
+		UserLoggedIn:        handlers.NewUserLoggedInHandler(logger),
+		UserPasswordChanged: handlers.NewUserPasswordChangedHandler(logger),
+		UserStatusChanged:   handlers.NewUserStatusChangedHandler(logger),
+		UserDeleted:         handlers.NewUserDeletedHandler(logger),
+		UserUpdated:         handlers.NewUserUpdatedHandler(logger),
+	}
 
 	// 创建消费者
-	cons, err := NewKafkaConsumer(cfg, handler, logger)
+	cons, err := NewKafkaConsumer(cfg, eventHandlers, logger)
 	if err != nil {
 		prod.Close() // 清理已创建的生产者
 		return nil, fmt.Errorf("failed to create kafka consumer: %w", err)
