@@ -6,18 +6,19 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/zhwjimmy/user-center/internal/config"
 	"go.uber.org/zap"
 )
 
-// redis 实现 Cache 接口
-type redis struct {
+// redisImpl 实现 Cache 接口
+type redisImpl struct {
 	client *redis.Client
 	logger *zap.Logger
 }
 
-// 确保 redis 实现了 Cache 接口
-var _ Cache = (*redis)(nil)
+// 确保 redisImpl 实现了 Cache 接口
+var _ Cache = (*redisImpl)(nil)
 
 // NewRedis 创建新的 Redis 连接
 func NewRedis(cfg *config.Config, logger *zap.Logger) (Cache, error) {
@@ -42,24 +43,24 @@ func NewRedis(cfg *config.Config, logger *zap.Logger) (Cache, error) {
 		zap.Int("db", cfg.Redis.DB),
 	)
 
-	return &redis{
+	return &redisImpl{
 		client: client,
 		logger: logger,
 	}, nil
 }
 
 // Close 关闭 Redis 连接
-func (r *redis) Close() error {
+func (r *redisImpl) Close() error {
 	return r.client.Close()
 }
 
 // Health 检查 Redis 健康状态
-func (r *redis) Health(ctx context.Context) error {
+func (r *redisImpl) Health(ctx context.Context) error {
 	return r.client.Ping(ctx).Err()
 }
 
 // Set 存储带过期时间的值
-func (r *redis) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
+func (r *redisImpl) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
 	data, err := json.Marshal(value)
 	if err != nil {
 		return fmt.Errorf("failed to marshal value: %w", err)
@@ -77,7 +78,7 @@ func (r *redis) Set(ctx context.Context, key string, value interface{}, expirati
 }
 
 // Get 从缓存中获取值
-func (r *redis) Get(ctx context.Context, key string, dest interface{}) error {
+func (r *redisImpl) Get(ctx context.Context, key string, dest interface{}) error {
 	data, err := r.client.Get(ctx, key).Result()
 	if err != nil {
 		if err == redis.Nil {
@@ -98,7 +99,7 @@ func (r *redis) Get(ctx context.Context, key string, dest interface{}) error {
 }
 
 // Delete 从缓存中删除键
-func (r *redis) Delete(ctx context.Context, key string) error {
+func (r *redisImpl) Delete(ctx context.Context, key string) error {
 	if err := r.client.Del(ctx, key).Err(); err != nil {
 		r.logger.Error("Failed to delete cache",
 			zap.String("key", key),
@@ -111,7 +112,7 @@ func (r *redis) Delete(ctx context.Context, key string) error {
 }
 
 // Exists 检查键是否存在
-func (r *redis) Exists(ctx context.Context, key string) (bool, error) {
+func (r *redisImpl) Exists(ctx context.Context, key string) (bool, error) {
 	result, err := r.client.Exists(ctx, key).Result()
 	if err != nil {
 		r.logger.Error("Failed to check cache existence",
@@ -125,7 +126,7 @@ func (r *redis) Exists(ctx context.Context, key string) (bool, error) {
 }
 
 // SetNX 仅在键不存在时设置值
-func (r *redis) SetNX(ctx context.Context, key string, value interface{}, expiration time.Duration) (bool, error) {
+func (r *redisImpl) SetNX(ctx context.Context, key string, value interface{}, expiration time.Duration) (bool, error) {
 	data, err := json.Marshal(value)
 	if err != nil {
 		return false, fmt.Errorf("failed to marshal value: %w", err)
@@ -144,7 +145,7 @@ func (r *redis) SetNX(ctx context.Context, key string, value interface{}, expira
 }
 
 // Increment 递增计数器
-func (r *redis) Increment(ctx context.Context, key string) (int64, error) {
+func (r *redisImpl) Increment(ctx context.Context, key string) (int64, error) {
 	result, err := r.client.Incr(ctx, key).Result()
 	if err != nil {
 		r.logger.Error("Failed to increment counter",
@@ -158,7 +159,7 @@ func (r *redis) Increment(ctx context.Context, key string) (int64, error) {
 }
 
 // IncrementWithExpiry 递增带过期时间的计数器
-func (r *redis) IncrementWithExpiry(ctx context.Context, key string, expiration time.Duration) (int64, error) {
+func (r *redisImpl) IncrementWithExpiry(ctx context.Context, key string, expiration time.Duration) (int64, error) {
 	pipe := r.client.Pipeline()
 	incrCmd := pipe.Incr(ctx, key)
 	pipe.Expire(ctx, key, expiration)
@@ -175,7 +176,7 @@ func (r *redis) IncrementWithExpiry(ctx context.Context, key string, expiration 
 }
 
 // SetExpiry 设置键的过期时间
-func (r *redis) SetExpiry(ctx context.Context, key string, expiration time.Duration) error {
+func (r *redisImpl) SetExpiry(ctx context.Context, key string, expiration time.Duration) error {
 	if err := r.client.Expire(ctx, key, expiration).Err(); err != nil {
 		r.logger.Error("Failed to set expiry",
 			zap.String("key", key),
@@ -188,7 +189,7 @@ func (r *redis) SetExpiry(ctx context.Context, key string, expiration time.Durat
 }
 
 // GetTTL 获取键的剩余生存时间
-func (r *redis) GetTTL(ctx context.Context, key string) (time.Duration, error) {
+func (r *redisImpl) GetTTL(ctx context.Context, key string) (time.Duration, error) {
 	ttl, err := r.client.TTL(ctx, key).Result()
 	if err != nil {
 		r.logger.Error("Failed to get TTL",
@@ -202,7 +203,7 @@ func (r *redis) GetTTL(ctx context.Context, key string) (time.Duration, error) {
 }
 
 // Keys 返回匹配模式的所有键
-func (r *redis) Keys(ctx context.Context, pattern string) ([]string, error) {
+func (r *redisImpl) Keys(ctx context.Context, pattern string) ([]string, error) {
 	keys, err := r.client.Keys(ctx, pattern).Result()
 	if err != nil {
 		r.logger.Error("Failed to get keys",

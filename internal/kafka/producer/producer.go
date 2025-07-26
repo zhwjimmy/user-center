@@ -2,13 +2,13 @@ package producer
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
 
 	"github.com/IBM/sarama"
-	"github.com/zhwjimmy/user-center/internal/kafka/config"
-	"github.com/zhwjimmy/user-center/internal/kafka/event"
+	"github.com/zhwjimmy/user-center/internal/infrastructure/messaging"
 	"go.uber.org/zap"
 )
 
@@ -22,14 +22,14 @@ type Producer interface {
 // KafkaProducer Kafka生产者实现
 type KafkaProducer struct {
 	producer sarama.AsyncProducer
-	config   *config.KafkaClientConfig
+	config   *messaging.KafkaClientConfig
 	logger   *zap.Logger
 	wg       sync.WaitGroup
 	closed   chan struct{}
 }
 
 // NewKafkaProducer 创建Kafka生产者
-func NewKafkaProducer(cfg *config.KafkaClientConfig, logger *zap.Logger) (Producer, error) {
+func NewKafkaProducer(cfg *messaging.KafkaClientConfig, logger *zap.Logger) (Producer, error) {
 	producerConfig := cfg.NewProducerConfig()
 
 	producer, err := sarama.NewAsyncProducer(cfg.Brokers, producerConfig)
@@ -99,121 +99,70 @@ func (p *KafkaProducer) PublishUserEventAsync(ctx context.Context, event interfa
 		return err
 	}
 
+	// 异步发送
 	select {
 	case p.producer.Input() <- message:
+		p.logger.Debug("Message sent to producer queue",
+			zap.String("topic", message.Topic),
+		)
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
-	default:
-		return fmt.Errorf("producer input channel is full")
+	case <-time.After(5 * time.Second):
+		return fmt.Errorf("timeout sending message to producer queue")
 	}
 }
 
 // createMessage 创建Kafka消息
 func (p *KafkaProducer) createMessage(eventData interface{}) (*sarama.ProducerMessage, error) {
-	var (
-		topic   string
-		key     string
-		value   []byte
-		headers []sarama.RecordHeader
-	)
+	// 序列化事件数据
+	jsonData, err := json.Marshal(eventData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal event data: %w", err)
+	}
 
-	switch e := eventData.(type) {
+	// 确定主题名称
+	var topic string
+	switch event := eventData.(type) {
 	case *event.UserRegisteredEvent:
-		topic = p.config.GetTopicName("user_events")
-		key = e.UserID
-		var err error
-		value, err = e.ToJSON()
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal user registered event: %w", err)
-		}
-		headers = []sarama.RecordHeader{
-			{Key: []byte("event_type"), Value: []byte(e.Type)},
-			{Key: []byte("request_id"), Value: []byte(e.RequestID)},
-		}
-
+		topic = p.config.GetTopicName("user_registered")
 	case *event.UserLoggedInEvent:
-		topic = p.config.GetTopicName("user_events")
-		key = e.UserID
-		var err error
-		value, err = e.ToJSON()
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal user logged in event: %w", err)
-		}
-		headers = []sarama.RecordHeader{
-			{Key: []byte("event_type"), Value: []byte(e.Type)},
-			{Key: []byte("request_id"), Value: []byte(e.RequestID)},
-		}
-
+		topic = p.config.GetTopicName("user_logged_in")
 	case *event.UserPasswordChangedEvent:
-		topic = p.config.GetTopicName("user_events")
-		key = e.UserID
-		var err error
-		value, err = e.ToJSON()
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal user password changed event: %w", err)
-		}
-		headers = []sarama.RecordHeader{
-			{Key: []byte("event_type"), Value: []byte(e.Type)},
-			{Key: []byte("request_id"), Value: []byte(e.RequestID)},
-		}
-
+		topic = p.config.GetTopicName("user_password_changed")
 	case *event.UserStatusChangedEvent:
-		topic = p.config.GetTopicName("user_events")
-		key = e.UserID
-		var err error
-		value, err = e.ToJSON()
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal user status changed event: %w", err)
-		}
-		headers = []sarama.RecordHeader{
-			{Key: []byte("event_type"), Value: []byte(e.Type)},
-			{Key: []byte("request_id"), Value: []byte(e.RequestID)},
-		}
-
+		topic = p.config.GetTopicName("user_status_changed")
 	case *event.UserDeletedEvent:
-		topic = p.config.GetTopicName("user_events")
-		key = e.UserID
-		var err error
-		value, err = e.ToJSON()
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal user deleted event: %w", err)
-		}
-		headers = []sarama.RecordHeader{
-			{Key: []byte("event_type"), Value: []byte(e.Type)},
-			{Key: []byte("request_id"), Value: []byte(e.RequestID)},
-		}
-
+		topic = p.config.GetTopicName("user_deleted")
 	case *event.UserUpdatedEvent:
-		topic = p.config.GetTopicName("user_events")
-		key = e.UserID
-		var err error
-		value, err = e.ToJSON()
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal user updated event: %w", err)
-		}
-		headers = []sarama.RecordHeader{
-			{Key: []byte("event_type"), Value: []byte(e.Type)},
-			{Key: []byte("request_id"), Value: []byte(e.RequestID)},
-		}
-
+		topic = p.config.GetTopicName("user_updated")
 	default:
 		return nil, fmt.Errorf("unsupported event type: %T", eventData)
 	}
 
-	return &sarama.ProducerMessage{
-		Topic:     topic,
-		Key:       sarama.StringEncoder(key),
-		Value:     sarama.ByteEncoder(value),
-		Headers:   headers,
-		Timestamp: time.Now(),
-	}, nil
+	// 创建消息
+	message := &sarama.ProducerMessage{
+		Topic: topic,
+		Value: sarama.ByteEncoder(jsonData),
+		Key:   sarama.StringEncoder(fmt.Sprintf("%d", time.Now().UnixNano())),
+		Headers: []sarama.RecordHeader{
+			{
+				Key:   []byte("content-type"),
+				Value: []byte("application/json"),
+			},
+			{
+				Key:   []byte("timestamp"),
+				Value: []byte(time.Now().Format(time.RFC3339)),
+			},
+		},
+	}
+
+	return message, nil
 }
 
-// handleSuccesses 处理成功消息
+// handleSuccesses 处理成功发送的消息
 func (p *KafkaProducer) handleSuccesses() {
 	defer p.wg.Done()
-
 	for {
 		select {
 		case success := <-p.producer.Successes():
@@ -228,10 +177,9 @@ func (p *KafkaProducer) handleSuccesses() {
 	}
 }
 
-// handleErrors 处理错误消息
+// handleErrors 处理发送失败的消息
 func (p *KafkaProducer) handleErrors() {
 	defer p.wg.Done()
-
 	for {
 		select {
 		case err := <-p.producer.Errors():
@@ -247,14 +195,9 @@ func (p *KafkaProducer) handleErrors() {
 
 // Close 关闭生产者
 func (p *KafkaProducer) Close() error {
+	p.logger.Info("Closing Kafka producer")
 	close(p.closed)
-
-	if err := p.producer.Close(); err != nil {
-		p.logger.Error("Failed to close kafka producer", zap.Error(err))
-		return err
-	}
-
+	p.producer.AsyncClose()
 	p.wg.Wait()
-	p.logger.Info("Kafka producer closed successfully")
 	return nil
 }

@@ -9,7 +9,6 @@ import (
 	"github.com/zhwjimmy/user-center/internal/infrastructure/cache"
 	"github.com/zhwjimmy/user-center/internal/infrastructure/database"
 	"github.com/zhwjimmy/user-center/internal/infrastructure/messaging"
-	kafkaConfig "github.com/zhwjimmy/user-center/internal/kafka/config"
 	"go.uber.org/zap"
 )
 
@@ -92,13 +91,7 @@ func (m *Manager) initCache() error {
 // initMessaging 初始化消息队列
 func (m *Manager) initMessaging() error {
 	// 创建 Kafka 配置
-	kafkaConfig := &kafkaConfig.KafkaClientConfig{
-		BootstrapServers: m.config.Kafka.BootstrapServers,
-		GroupID:          m.config.Kafka.GroupID,
-		AutoOffsetReset:  m.config.Kafka.AutoOffsetReset,
-		EnableAutoCommit: m.config.Kafka.EnableAutoCommit,
-		Topics:           m.config.Kafka.Topics,
-	}
+	kafkaConfig := messaging.NewKafkaClientConfig(m.config)
 
 	kafka, err := messaging.NewKafkaService(kafkaConfig, m.logger)
 	if err != nil {

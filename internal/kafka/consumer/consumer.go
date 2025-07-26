@@ -6,20 +6,9 @@ import (
 	"sync"
 
 	"github.com/IBM/sarama"
-	"github.com/zhwjimmy/user-center/internal/kafka/config"
-	"github.com/zhwjimmy/user-center/internal/kafka/event"
+	"github.com/zhwjimmy/user-center/internal/infrastructure/messaging"
 	"go.uber.org/zap"
 )
-
-// MessageHandler 消息处理器接口
-type MessageHandler interface {
-	HandleUserRegistered(ctx context.Context, event *event.UserRegisteredEvent) error
-	HandleUserLoggedIn(ctx context.Context, event *event.UserLoggedInEvent) error
-	HandleUserPasswordChanged(ctx context.Context, event *event.UserPasswordChangedEvent) error
-	HandleUserStatusChanged(ctx context.Context, event *event.UserStatusChangedEvent) error
-	HandleUserDeleted(ctx context.Context, event *event.UserDeletedEvent) error
-	HandleUserUpdated(ctx context.Context, event *event.UserUpdatedEvent) error
-}
 
 // Consumer Kafka消费者接口
 type Consumer interface {
@@ -29,204 +18,134 @@ type Consumer interface {
 
 // KafkaConsumer Kafka消费者实现
 type KafkaConsumer struct {
-	consumerGroup sarama.ConsumerGroup
-	config        *config.KafkaClientConfig
-	handler       MessageHandler
-	logger        *zap.Logger
-	wg            sync.WaitGroup
-	cancel        context.CancelFunc
+	consumer sarama.ConsumerGroup
+	config   *messaging.KafkaClientConfig
+	handler  MessageHandler
+	logger   *zap.Logger
+	topics   []string
+	wg       sync.WaitGroup
+	ctx      context.Context
+	cancel   context.CancelFunc
+}
+
+// MessageHandler 消息处理器接口
+type MessageHandler interface {
+	HandleMessage(ctx context.Context, message *sarama.ConsumerMessage) error
 }
 
 // NewKafkaConsumer 创建Kafka消费者
-func NewKafkaConsumer(cfg *config.KafkaClientConfig, handler MessageHandler, logger *zap.Logger) (Consumer, error) {
+func NewKafkaConsumer(cfg *messaging.KafkaClientConfig, handler MessageHandler, logger *zap.Logger) (Consumer, error) {
 	consumerConfig := cfg.NewConsumerConfig()
 
-	consumerGroup, err := sarama.NewConsumerGroup(cfg.Brokers, cfg.GroupID, consumerConfig)
+	consumer, err := sarama.NewConsumerGroup(cfg.Brokers, cfg.GroupID, consumerConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create kafka consumer group: %w", err)
+		return nil, fmt.Errorf("failed to create kafka consumer: %w", err)
 	}
 
-	consumer := &KafkaConsumer{
-		consumerGroup: consumerGroup,
-		config:        cfg,
-		handler:       handler,
-		logger:        logger,
+	// 确定要消费的主题
+	topics := []string{
+		cfg.GetTopicName("user_registered"),
+		cfg.GetTopicName("user_logged_in"),
+		cfg.GetTopicName("user_password_changed"),
+		cfg.GetTopicName("user_status_changed"),
+		cfg.GetTopicName("user_deleted"),
+		cfg.GetTopicName("user_updated"),
+	}
+
+	kc := &KafkaConsumer{
+		consumer: consumer,
+		config:   cfg,
+		handler:  handler,
+		logger:   logger,
+		topics:   topics,
 	}
 
 	logger.Info("Kafka consumer created successfully",
 		zap.Strings("brokers", cfg.Brokers),
 		zap.String("group_id", cfg.GroupID),
+		zap.Strings("topics", topics),
 	)
 
-	return consumer, nil
+	return kc, nil
 }
 
 // Start 启动消费者
 func (c *KafkaConsumer) Start(ctx context.Context) error {
-	ctx, cancel := context.WithCancel(ctx)
-	c.cancel = cancel
-
-	topics := []string{c.config.GetTopicName("user_events")}
+	c.ctx, c.cancel = context.WithCancel(ctx)
 
 	c.wg.Add(1)
 	go func() {
 		defer c.wg.Done()
-
 		for {
 			select {
-			case <-ctx.Done():
-				c.logger.Info("Consumer context cancelled")
+			case <-c.ctx.Done():
 				return
 			default:
-				if err := c.consumerGroup.Consume(ctx, topics, c); err != nil {
-					c.logger.Error("Error consuming messages", zap.Error(err))
-					return
+				if err := c.consumer.Consume(c.ctx, c.topics, c); err != nil {
+					c.logger.Error("Error from consumer", zap.Error(err))
 				}
 			}
 		}
 	}()
 
-	// 处理错误
-	c.wg.Add(1)
-	go func() {
-		defer c.wg.Done()
-
-		for {
-			select {
-			case err := <-c.consumerGroup.Errors():
-				c.logger.Error("Consumer group error", zap.Error(err))
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
-
-	c.logger.Info("Kafka consumer started", zap.Strings("topics", topics))
+	c.logger.Info("Kafka consumer started")
 	return nil
 }
 
 // Stop 停止消费者
 func (c *KafkaConsumer) Stop() error {
+	c.logger.Info("Stopping Kafka consumer")
 	if c.cancel != nil {
 		c.cancel()
 	}
-
-	if err := c.consumerGroup.Close(); err != nil {
-		c.logger.Error("Failed to close consumer group", zap.Error(err))
-		return err
-	}
-
 	c.wg.Wait()
-	c.logger.Info("Kafka consumer stopped successfully")
-	return nil
+	return c.consumer.Close()
 }
 
-// Setup 消费者组设置
+// Setup 实现 sarama.ConsumerGroupHandler 接口
 func (c *KafkaConsumer) Setup(sarama.ConsumerGroupSession) error {
+	c.logger.Info("Consumer group session setup")
 	return nil
 }
 
-// Cleanup 消费者组清理
+// Cleanup 实现 sarama.ConsumerGroupHandler 接口
 func (c *KafkaConsumer) Cleanup(sarama.ConsumerGroupSession) error {
+	c.logger.Info("Consumer group session cleanup")
 	return nil
 }
 
-// ConsumeClaim 消费消息
+// ConsumeClaim 实现 sarama.ConsumerGroupHandler 接口
 func (c *KafkaConsumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	for {
 		select {
 		case message := <-claim.Messages():
 			if message == nil {
-				return nil
+				continue
 			}
 
-			if err := c.processMessage(session.Context(), message); err != nil {
-				c.logger.Error("Failed to process message",
+			c.logger.Debug("Received message",
+				zap.String("topic", message.Topic),
+				zap.Int32("partition", message.Partition),
+				zap.Int64("offset", message.Offset),
+			)
+
+			// 处理消息
+			if err := c.handler.HandleMessage(session.Context(), message); err != nil {
+				c.logger.Error("Failed to handle message",
 					zap.String("topic", message.Topic),
 					zap.Int32("partition", message.Partition),
 					zap.Int64("offset", message.Offset),
 					zap.Error(err),
 				)
-				// 继续处理下一条消息，不中断消费
+				// 不标记消息为已处理，让 Kafka 重新投递
 				continue
 			}
 
-			// 标记消息已处理
+			// 标记消息为已处理
 			session.MarkMessage(message, "")
 
 		case <-session.Context().Done():
 			return nil
 		}
 	}
-}
-
-// processMessage 处理消息
-func (c *KafkaConsumer) processMessage(ctx context.Context, message *sarama.ConsumerMessage) error {
-	// 获取事件类型
-	eventType := c.getEventType(message.Headers)
-
-	c.logger.Debug("Processing message",
-		zap.String("topic", message.Topic),
-		zap.String("event_type", eventType),
-		zap.Int32("partition", message.Partition),
-		zap.Int64("offset", message.Offset),
-	)
-
-	switch event.EventType(eventType) {
-	case event.UserRegistered:
-		var userEvent event.UserRegisteredEvent
-		if err := userEvent.FromJSON(message.Value); err != nil {
-			return fmt.Errorf("failed to unmarshal user registered event: %w", err)
-		}
-		return c.handler.HandleUserRegistered(ctx, &userEvent)
-
-	case event.UserLoggedIn:
-		var userEvent event.UserLoggedInEvent
-		if err := userEvent.FromJSON(message.Value); err != nil {
-			return fmt.Errorf("failed to unmarshal user logged in event: %w", err)
-		}
-		return c.handler.HandleUserLoggedIn(ctx, &userEvent)
-
-	case event.UserPasswordChanged:
-		var userEvent event.UserPasswordChangedEvent
-		if err := userEvent.FromJSON(message.Value); err != nil {
-			return fmt.Errorf("failed to unmarshal user password changed event: %w", err)
-		}
-		return c.handler.HandleUserPasswordChanged(ctx, &userEvent)
-
-	case event.UserStatusChanged:
-		var userEvent event.UserStatusChangedEvent
-		if err := userEvent.FromJSON(message.Value); err != nil {
-			return fmt.Errorf("failed to unmarshal user status changed event: %w", err)
-		}
-		return c.handler.HandleUserStatusChanged(ctx, &userEvent)
-
-	case event.UserDeleted:
-		var userEvent event.UserDeletedEvent
-		if err := userEvent.FromJSON(message.Value); err != nil {
-			return fmt.Errorf("failed to unmarshal user deleted event: %w", err)
-		}
-		return c.handler.HandleUserDeleted(ctx, &userEvent)
-
-	case event.UserUpdated:
-		var userEvent event.UserUpdatedEvent
-		if err := userEvent.FromJSON(message.Value); err != nil {
-			return fmt.Errorf("failed to unmarshal user updated event: %w", err)
-		}
-		return c.handler.HandleUserUpdated(ctx, &userEvent)
-
-	default:
-		c.logger.Warn("Unknown event type", zap.String("event_type", eventType))
-		return nil // 忽略未知事件类型
-	}
-}
-
-// getEventType 从消息头获取事件类型
-func (c *KafkaConsumer) getEventType(headers []*sarama.RecordHeader) string {
-	for _, header := range headers {
-		if string(header.Key) == "event_type" {
-			return string(header.Value)
-		}
-	}
-	return ""
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/zhwjimmy/user-center/internal/kafka/config"
 	"github.com/zhwjimmy/user-center/internal/kafka/consumer"
 	"github.com/zhwjimmy/user-center/internal/kafka/producer"
 	"go.uber.org/zap"
@@ -21,7 +20,7 @@ type kafkaService struct {
 var _ Service = (*kafkaService)(nil)
 
 // NewKafkaService 创建 Kafka 服务
-func NewKafkaService(cfg *config.KafkaClientConfig, logger *zap.Logger) (Service, error) {
+func NewKafkaService(cfg *KafkaClientConfig, logger *zap.Logger) (Service, error) {
 	// 创建生产者
 	prod, err := producer.NewKafkaProducer(cfg, logger)
 	if err != nil {

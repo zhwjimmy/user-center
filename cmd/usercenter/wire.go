@@ -9,9 +9,9 @@ import (
 	"github.com/zhwjimmy/user-center/internal/cache"
 	"github.com/zhwjimmy/user-center/internal/config"
 	"github.com/zhwjimmy/user-center/internal/handler"
+	"github.com/zhwjimmy/user-center/internal/infrastructure"
+	infraCache "github.com/zhwjimmy/user-center/internal/infrastructure/cache"
 	"github.com/zhwjimmy/user-center/internal/infrastructure/messaging"
-	"github.com/zhwjimmy/user-center/internal/kafka"
-	kafkaConfig "github.com/zhwjimmy/user-center/internal/kafka/config"
 	"github.com/zhwjimmy/user-center/internal/middleware"
 	"github.com/zhwjimmy/user-center/internal/repository"
 	"github.com/zhwjimmy/user-center/internal/server"
@@ -20,8 +20,6 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gorm.io/gorm"
-
-	"github.com/zhwjimmy/user-center/internal/infrastructure"
 )
 
 type (
@@ -89,11 +87,11 @@ func provideInfrastructureManager(cfg *config.Config, logger *zap.Logger) (*infr
 
 // provideGormDB 从基础设施管理器获取 GORM DB
 func provideGormDB(manager *infrastructure.Manager) *gorm.DB {
-	return manager.GetPostgreSQL().DB
+	return manager.GetPostgreSQL().DB()
 }
 
 // provideCache 从基础设施管理器获取缓存
-func provideCache(manager *infrastructure.Manager) cache.Cache {
+func provideCache(manager *infrastructure.Manager) infraCache.Cache {
 	return manager.GetRedis()
 }
 
@@ -106,6 +104,7 @@ func provideKafkaService(manager *infrastructure.Manager) messaging.Service {
 func provideServer(
 	cfg *config.Config,
 	logger *zap.Logger,
+	infra *infrastructure.Manager,
 	userHandler *handler.UserHandler,
 	healthHandler *handler.HealthHandler,
 	authMiddleware *middleware.AuthMiddleware,
@@ -114,11 +113,12 @@ func provideServer(
 	requestIDMiddleware middleware.RequestIDMiddleware,
 	loggerMiddleware middleware.LoggerMiddleware,
 	recoveryMiddleware middleware.RecoveryMiddleware,
-	kafkaService kafka.Service,
+	kafkaService messaging.Service,
 ) *server.Server {
 	return server.New(
 		cfg,
 		logger,
+		infra,
 		userHandler,
 		healthHandler,
 		authMiddleware,
@@ -136,7 +136,6 @@ func InitializeApp() (*server.Server, error) {
 	wire.Build(
 		// Configuration
 		config.Load,
-		kafkaConfig.NewKafkaClientConfig,
 
 		// Logger
 		provideLogger,

@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/gin-gonic/gin"
-	"github.com/zhwjimmy/user-center/internal/kafka"
+	"github.com/zhwjimmy/user-center/internal/infrastructure/messaging"
 	"github.com/zhwjimmy/user-center/internal/kafka/event"
 	"github.com/zhwjimmy/user-center/internal/model"
 	"go.uber.org/zap"
@@ -12,12 +12,12 @@ import (
 
 // EventService provides event publishing services
 type EventService struct {
-	kafkaService kafka.Service
+	kafkaService messaging.Service
 	logger       *zap.Logger
 }
 
 // NewEventService creates a new event service
-func NewEventService(kafkaService kafka.Service, logger *zap.Logger) *EventService {
+func NewEventService(kafkaService messaging.Service, logger *zap.Logger) *EventService {
 	return &EventService{
 		kafkaService: kafkaService,
 		logger:       logger,
@@ -140,20 +140,22 @@ func (s *EventService) PublishUserUpdatedEvent(ctx context.Context, user *model.
 	return s.kafkaService.GetProducer().PublishUserEventAsync(ctx, userEvent)
 }
 
-// getRequestID gets the request ID from context
+// getRequestID extracts request ID from context
 func (s *EventService) getRequestID(ctx context.Context) string {
 	if ginCtx, ok := ctx.(*gin.Context); ok {
-		if requestID := ginCtx.GetHeader("X-Request-ID"); requestID != "" {
-			return requestID
+		if requestID, exists := ginCtx.Get("request_id"); exists {
+			if id, ok := requestID.(string); ok {
+				return id
+			}
 		}
 	}
 	return ""
 }
 
-// getStringValue gets the value from a string pointer
+// getStringValue safely gets string value from pointer
 func (s *EventService) getStringValue(ptr *string) string {
-	if ptr != nil {
-		return *ptr
+	if ptr == nil {
+		return ""
 	}
-	return ""
+	return *ptr
 }
