@@ -1,3 +1,5 @@
+// Package infrastructure provides the core infrastructure layer for the user-center application.
+// It manages database connections, caching, messaging, and other external service integrations.
 package infrastructure
 
 import (
@@ -18,14 +20,14 @@ type Manager struct {
 	logger *zap.Logger
 
 	// 数据库连接
-	postgres database.PostgreSQL
-	mongodb  database.MongoDB
+	postgresDB database.PostgresDB // 改为 PostgresDB
+	mongoDB    database.MongoDB    // 改为 mongoDB
 
 	// 缓存连接
-	redis cache.Cache
+	cache cache.Cache // 改为 cache
 
 	// 消息队列
-	kafka messaging.Service
+	messaging messaging.Service
 
 	// 生命周期管理
 	mu     sync.RWMutex
@@ -65,14 +67,14 @@ func (m *Manager) initDatabases() error {
 	if err != nil {
 		return fmt.Errorf("failed to initialize PostgreSQL: %w", err)
 	}
-	m.postgres = postgres
+	m.postgresDB = postgres
 
 	// 初始化 MongoDB
 	mongodb, err := database.NewMongoDB(m.config, m.logger)
 	if err != nil {
 		return fmt.Errorf("failed to initialize MongoDB: %w", err)
 	}
-	m.mongodb = mongodb
+	m.mongoDB = mongodb
 
 	return nil
 }
@@ -83,47 +85,46 @@ func (m *Manager) initCache() error {
 	if err != nil {
 		return fmt.Errorf("failed to initialize Redis: %w", err)
 	}
-	m.redis = redis
+	m.cache = redis
 
 	return nil
 }
 
 // initMessaging 初始化消息队列
 func (m *Manager) initMessaging() error {
-	// 创建 Kafka 配置
+	// 创建消息队列配置
 	kafkaConfig := messaging.NewKafkaClientConfig(m.config)
 
 	// 创建默认的 Handler 工厂
-	// 在实际项目中，这个工厂应该由业务层提供
 	handlerFactory := messaging.NewDefaultHandlerFactory()
 
-	kafka, err := messaging.NewKafkaService(kafkaConfig, handlerFactory, m.logger)
+	messagingService, err := messaging.NewKafkaService(kafkaConfig, handlerFactory, m.logger)
 	if err != nil {
-		return fmt.Errorf("failed to initialize Kafka: %w", err)
+		return fmt.Errorf("failed to initialize messaging service: %w", err)
 	}
-	m.kafka = kafka
+	m.messaging = messagingService // 使用 messaging
 
 	return nil
 }
 
 // GetPostgreSQL 获取 PostgreSQL 连接
-func (m *Manager) GetPostgreSQL() database.PostgreSQL {
-	return m.postgres
+func (m *Manager) GetPostgreSQL() database.PostgresDB {
+	return m.postgresDB
 }
 
 // GetMongoDB 获取 MongoDB 连接
 func (m *Manager) GetMongoDB() database.MongoDB {
-	return m.mongodb
+	return m.mongoDB
 }
 
 // GetRedis 获取 Redis 连接
 func (m *Manager) GetRedis() cache.Cache {
-	return m.redis
+	return m.cache
 }
 
-// GetKafka 获取 Kafka 服务
-func (m *Manager) GetKafka() messaging.Service {
-	return m.kafka
+// GetMessaging 获取消息队列服务
+func (m *Manager) GetMessaging() messaging.Service {
+	return m.messaging
 }
 
 // Start 启动所有服务
@@ -135,9 +136,9 @@ func (m *Manager) Start(ctx context.Context) error {
 		return fmt.Errorf("manager is already closed")
 	}
 
-	// 启动 Kafka 服务
-	if err := m.kafka.Start(ctx); err != nil {
-		return fmt.Errorf("failed to start kafka service: %w", err)
+	// 启动消息队列服务
+	if err := m.messaging.Start(ctx); err != nil {
+		return fmt.Errorf("failed to start messaging service: %w", err)
 	}
 
 	m.logger.Info("All infrastructure services started successfully")
@@ -155,23 +156,23 @@ func (m *Manager) Stop(ctx context.Context) error {
 
 	var errors []error
 
-	// 停止 Kafka 服务
-	if err := m.kafka.Stop(); err != nil {
-		errors = append(errors, fmt.Errorf("failed to stop kafka: %w", err))
+	// 停止消息队列服务
+	if err := m.messaging.Stop(); err != nil {
+		errors = append(errors, fmt.Errorf("failed to stop messaging service: %w", err))
 	}
 
 	// 关闭 Redis 连接
-	if err := m.redis.Close(); err != nil {
+	if err := m.cache.Close(); err != nil {
 		errors = append(errors, fmt.Errorf("failed to close redis: %w", err))
 	}
 
 	// 关闭 MongoDB 连接
-	if err := m.mongodb.Close(ctx); err != nil {
+	if err := m.mongoDB.Close(ctx); err != nil {
 		errors = append(errors, fmt.Errorf("failed to close mongodb: %w", err))
 	}
 
 	// 关闭 PostgreSQL 连接
-	if err := m.postgres.Close(); err != nil {
+	if err := m.postgresDB.Close(); err != nil {
 		errors = append(errors, fmt.Errorf("failed to close postgresql: %w", err))
 	}
 

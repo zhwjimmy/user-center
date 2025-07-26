@@ -27,7 +27,7 @@ func (m *Manager) Health(ctx context.Context) HealthStatus {
 	}
 
 	// 检查 PostgreSQL
-	if err := m.postgres.Health(); err != nil {
+	if err := m.postgresDB.Health(); err != nil {
 		status.Services["postgresql"] = Status{
 			Status:  "unhealthy",
 			Message: err.Error(),
@@ -37,7 +37,7 @@ func (m *Manager) Health(ctx context.Context) HealthStatus {
 	}
 
 	// 检查 MongoDB
-	if err := m.mongodb.Health(ctx); err != nil {
+	if err := m.mongoDB.Health(ctx); err != nil {
 		status.Services["mongodb"] = Status{
 			Status:  "unhealthy",
 			Message: err.Error(),
@@ -47,7 +47,7 @@ func (m *Manager) Health(ctx context.Context) HealthStatus {
 	}
 
 	// 检查 Redis
-	if err := m.redis.Health(ctx); err != nil {
+	if err := m.cache.Health(ctx); err != nil {
 		status.Services["redis"] = Status{
 			Status:  "unhealthy",
 			Message: err.Error(),
@@ -56,13 +56,13 @@ func (m *Manager) Health(ctx context.Context) HealthStatus {
 		status.Services["redis"] = Status{Status: "healthy"}
 	}
 
-	// 检查 Kafka
-	if m.kafka != nil {
-		status.Services["kafka"] = Status{Status: "healthy"}
+	// 检查消息队列
+	if m.messaging != nil {
+		status.Services["messaging"] = Status{Status: "healthy"}
 	} else {
-		status.Services["kafka"] = Status{
+		status.Services["messaging"] = Status{
 			Status:  "unhealthy",
-			Message: "kafka service not initialized",
+			Message: "messaging service not initialized",
 		}
 	}
 

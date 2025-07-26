@@ -43,7 +43,7 @@ jwt:
   issuer: "usercenter"
 
 logging:
-  level: "info"  # debug, info, warn, error
+  level: "debug"  # debug, info, warn, error
   format: "json"  # json, console
   output_path: "logs/usercenter.log"
 

@@ -95,14 +95,14 @@ func provideCache(manager *infrastructure.Manager) infraCache.Cache {
 	return manager.GetRedis()
 }
 
-// provideKafkaService 从基础设施管理器获取 Kafka 服务
-func provideKafkaService(manager *infrastructure.Manager) messaging.Service {
-	return manager.GetKafka()
+// provideMessagingService 从基础设施管理器获取消息队列服务
+func provideMessagingService(manager *infrastructure.Manager) messaging.Service {
+	return manager.GetMessaging()
 }
 
 // provideEventPublisher 创建事件发布器
-func provideEventPublisher(kafkaService messaging.Service, logger *zap.Logger) publisher.EventPublisher {
-	return publisher.NewKafkaEventPublisher(kafkaService.GetProducer(), logger)
+func provideEventPublisher(messagingService messaging.Service, logger *zap.Logger) publisher.EventPublisher {
+	return publisher.NewKafkaEventPublisher(messagingService.GetProducer(), logger)
 }
 
 // provideServer creates a new server instance
@@ -118,7 +118,7 @@ func provideServer(
 	requestIDMiddleware middleware.RequestIDMiddleware,
 	loggerMiddleware middleware.LoggerMiddleware,
 	recoveryMiddleware middleware.RecoveryMiddleware,
-	kafkaService messaging.Service,
+	messagingService messaging.Service, // 参数名改为 messagingService
 ) *server.Server {
 	return server.New(
 		cfg,
@@ -132,7 +132,7 @@ func provideServer(
 		requestIDMiddleware,
 		loggerMiddleware,
 		recoveryMiddleware,
-		kafkaService,
+		messagingService, // 参数名改为 messagingService
 	)
 }
 
@@ -154,7 +154,7 @@ func InitializeApp() (*server.Server, error) {
 		// Extract connections from manager
 		provideGormDB,
 		provideCache,
-		provideKafkaService,
+		provideMessagingService, // 改为 provideMessagingService
 
 		// Event Publisher
 		provideEventPublisher,

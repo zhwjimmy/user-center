@@ -1,3 +1,6 @@
+// Package cache provides caching interfaces and implementations for the user-center application.
+// It defines a common Cache interface that can be implemented by different caching backends
+// such as Redis, in-memory cache, etc.
 package cache
 
 import (

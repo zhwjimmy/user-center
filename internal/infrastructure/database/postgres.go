@@ -17,11 +17,11 @@ type postgreSQL struct {
 	db *gorm.DB
 }
 
-// 确保 postgreSQL 实现了 PostgreSQL 接口
-var _ PostgreSQL = (*postgreSQL)(nil)
+// 确保 postgreSQL 实现了 PostgresDB 接口
+var _ PostgresDB = (*postgreSQL)(nil)
 
 // NewPostgreSQL 创建新的 PostgreSQL 连接
-func NewPostgreSQL(cfg *config.Config, zapLogger *zap.Logger) (PostgreSQL, error) {
+func NewPostgreSQL(cfg *config.Config, zapLogger *zap.Logger) (PostgresDB, error) {
 	dsn := cfg.Database.Postgres.GetDSN()
 
 	// Configure GORM logger
@@ -71,6 +71,11 @@ func NewPostgreSQL(cfg *config.Config, zapLogger *zap.Logger) (PostgreSQL, error
 	)
 
 	return &postgreSQL{db: db}, nil
+}
+
+// GetDB 返回数据库连接（实现 Database 接口）
+func (p *postgreSQL) GetDB() interface{} {
+	return p.db
 }
 
 // DB 返回 GORM DB 实例
