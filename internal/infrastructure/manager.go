@@ -11,6 +11,7 @@ import (
 	"github.com/zhwjimmy/user-center/internal/infrastructure/cache"
 	"github.com/zhwjimmy/user-center/internal/infrastructure/database"
 	"github.com/zhwjimmy/user-center/internal/infrastructure/messaging"
+	"github.com/zhwjimmy/user-center/internal/infrastructure/queue"
 	"go.uber.org/zap"
 )
 
@@ -28,6 +29,9 @@ type Manager struct {
 
 	// 消息队列
 	messaging messaging.Service
+
+	// 任务队列
+	queue queue.Service
 
 	// 生命周期管理
 	mu     sync.RWMutex
@@ -54,6 +58,11 @@ func NewManager(cfg *config.Config, logger *zap.Logger) (*Manager, error) {
 	// 初始化消息队列
 	if err := manager.initMessaging(); err != nil {
 		return nil, fmt.Errorf("failed to initialize messaging: %w", err)
+	}
+
+	// 初始化任务队列
+	if err := manager.initQueue(); err != nil {
+		return nil, fmt.Errorf("failed to initialize queue: %w", err)
 	}
 
 	logger.Info("Infrastructure manager initialized successfully")
@@ -107,6 +116,17 @@ func (m *Manager) initMessaging() error {
 	return nil
 }
 
+// initQueue 初始化任务队列
+func (m *Manager) initQueue() error {
+	queueService, err := queue.NewAsynqService(m.config, m.logger)
+	if err != nil {
+		return fmt.Errorf("failed to initialize queue service: %w", err)
+	}
+	m.queue = queueService
+
+	return nil
+}
+
 // GetPostgreSQL 获取 PostgreSQL 连接
 func (m *Manager) GetPostgreSQL() database.PostgresDB {
 	return m.postgresDB
@@ -127,6 +147,11 @@ func (m *Manager) GetMessaging() messaging.Service {
 	return m.messaging
 }
 
+// GetQueue 获取任务队列服务
+func (m *Manager) GetQueue() queue.Service {
+	return m.queue
+}
+
 // Start 启动所有服务
 func (m *Manager) Start(ctx context.Context) error {
 	m.mu.Lock()
@@ -139,6 +164,11 @@ func (m *Manager) Start(ctx context.Context) error {
 	// 启动消息队列服务
 	if err := m.messaging.Start(ctx); err != nil {
 		return fmt.Errorf("failed to start messaging service: %w", err)
+	}
+
+	// 启动任务队列服务
+	if err := m.queue.Start(ctx); err != nil {
+		return fmt.Errorf("failed to start queue service: %w", err)
 	}
 
 	m.logger.Info("All infrastructure services started successfully")
@@ -159,6 +189,11 @@ func (m *Manager) Stop(ctx context.Context) error {
 	// 停止消息队列服务
 	if err := m.messaging.Stop(); err != nil {
 		errors = append(errors, fmt.Errorf("failed to stop messaging service: %w", err))
+	}
+
+	// 停止任务队列服务
+	if err := m.queue.Stop(); err != nil {
+		errors = append(errors, fmt.Errorf("failed to stop queue service: %w", err))
 	}
 
 	// 关闭 Redis 连接
