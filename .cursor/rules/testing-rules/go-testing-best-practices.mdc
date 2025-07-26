@@ -223,7 +223,7 @@ assert.Error(t, err)
 assert.ErrorIs(t, err, expectedError)
 assert.ErrorContains(t, err, "expected message")
 ```
-description:
-globs:
+description: "Advanced Go testing patterns and mock generation best practices for UserCenter"
+globs: ["**/*_test.go", "internal/mock/**/*.go"]
 alwaysApply: false
 ---

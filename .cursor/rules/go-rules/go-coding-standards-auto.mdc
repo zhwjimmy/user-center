@@ -1,5 +1,78 @@
 ---
-description:
-globs:
+description: "Go coding standards and best practices for the UserCenter project"
+globs: ["**/*.go"]
 alwaysApply: false
 ---
+# Go Coding Standards
+
+## 🎯 Code Style Requirements
+- Use `gofmt` and `goimports` for formatting
+- Follow Go naming conventions (camelCase for private, PascalCase for public)
+- Use meaningful variable names over comments
+- Keep functions small and focused (max 50 lines)
+- Use early returns to reduce nesting
+
+## 📦 Package Organization
+- One package per directory
+- Use descriptive package names (avoid `util`, `common`)
+- Group related functionality together
+- Avoid circular dependencies
+
+## 🔧 Error Handling
+- Always handle errors explicitly - never ignore them
+- Use custom error types for business logic errors
+- Wrap errors with context: `fmt.Errorf("operation failed: %w", err)`
+- Return errors as the last return value
+- Use early returns for error conditions
+
+## 🏗️ Structure and Interfaces
+- Define interfaces in consuming packages, not implementing packages
+- Keep interfaces small and focused
+- Use composition over inheritance
+- Prefer dependency injection over global variables
+
+## 💡 Best Practices
+- Use context.Context for cancellation and timeouts
+- Implement proper resource cleanup with defer
+- Use `sync.Once` for one-time initialization
+- Prefer channels for goroutine communication
+- Always close channels when done writing
+
+## ❌ Avoid
+```go
+// Don't ignore errors
+result, _ := someFunction()
+
+// Don't use generic variable names
+var d time.Duration
+
+// Don't create overly deep nesting
+if condition1 {
+    if condition2 {
+        if condition3 {
+            // too deep
+        }
+    }
+}
+```
+
+## ✅ Prefer
+```go
+// Handle errors properly
+result, err := someFunction()
+if err != nil {
+    return fmt.Errorf("failed to get result: %w", err)
+}
+
+// Use descriptive names
+var requestTimeout time.Duration
+
+// Use early returns
+if !condition1 {
+    return errors.New("condition1 not met")
+}
+if !condition2 {
+    return errors.New("condition2 not met")
+}
+// main logic here
+```

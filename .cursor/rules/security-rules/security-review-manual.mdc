@@ -1,5 +1,150 @@
 ---
-description:
-globs:
+description: "Security review checklist and best practices for UserCenter"
+globs: []
 alwaysApply: false
 ---
+# Security Review Checklist
+
+## 🔐 Authentication & Authorization
+- [ ] JWT tokens have proper expiration times (15min access, 7d refresh)
+- [ ] Passwords are hashed with bcrypt (minimum cost 12)
+- [ ] JWT secrets are cryptographically secure and environment-specific
+- [ ] Protected endpoints validate JWT tokens properly
+- [ ] No sensitive data in JWT payload
+- [ ] Proper logout implementation (token invalidation)
+
+## 🛡️ Input Validation
+- [ ] All user inputs are validated using struct tags and custom validators
+- [ ] SQL injection protection (parameterized queries only)
+- [ ] XSS prevention (proper output encoding)
+- [ ] File upload restrictions (type, size, location)
+- [ ] Rate limiting on all public endpoints
+- [ ] CORS properly configured (specific origins, not `*`)
+
+## 🔍 Data Protection
+- [ ] Sensitive data is not logged (passwords, tokens, PII)
+- [ ] Database connections use SSL/TLS
+- [ ] Passwords never stored in plain text
+- [ ] User data properly sanitized before storage
+- [ ] Soft deletes for user data (GDPR compliance)
+- [ ] Personal data encrypted at rest when required
+
+## 🌐 Network Security
+- [ ] HTTPS enforced in production
+- [ ] Secure headers implemented:
+  ```go
+  c.Header("X-Content-Type-Options", "nosniff")
+  c.Header("X-Frame-Options", "DENY")
+  c.Header("X-XSS-Protection", "1; mode=block")
+  c.Header("Strict-Transport-Security", "max-age=31536000")
+  c.Header("Content-Security-Policy", "default-src 'self'")
+  ```
+- [ ] Rate limiting per IP and per user
+- [ ] Request timeout implemented
+- [ ] Body size limits enforced
+
+## 🔧 Configuration Security
+- [ ] Environment variables for sensitive configuration
+- [ ] No hardcoded secrets in source code
+- [ ] Database credentials not in configuration files
+- [ ] Production configurations separated from development
+- [ ] Minimal file permissions on config files
+
+## 📝 Error Handling
+- [ ] Generic error messages for authentication failures
+- [ ] No stack traces exposed to users
+- [ ] Detailed errors logged server-side only
+- [ ] Proper HTTP status codes used
+- [ ] No sensitive information in error responses
+
+## 🔄 Session Management
+- [ ] Session tokens are random and unpredictable
+- [ ] Session timeout implemented
+- [ ] Secure session storage (Redis with expiration)
+- [ ] Proper session invalidation on logout
+- [ ] Session fixation protection
+
+## 📊 Audit & Monitoring
+- [ ] Authentication attempts logged
+- [ ] Failed login attempts rate limited
+- [ ] Suspicious activity monitoring
+- [ ] Request IDs for traceability
+- [ ] Database access logged and monitored
+
+## 💾 Database Security
+- [ ] Principle of least privilege for database users
+- [ ] Database access from application only
+- [ ] Regular security updates applied
+- [ ] Database backups encrypted
+- [ ] Connection pooling with limits
+
+## 🧪 Testing Security
+- [ ] Authentication tests include negative cases
+- [ ] Authorization tests verify access controls
+- [ ] Input validation tests include malicious inputs
+- [ ] Rate limiting tests verify enforcement
+- [ ] Integration tests include security scenarios
+
+## 📋 Deployment Security
+- [ ] Container images scanned for vulnerabilities
+- [ ] Non-root user in container
+- [ ] Minimal base images used
+- [ ] Health checks don't expose sensitive information
+- [ ] Secrets managed through secure secret stores
+
+## ⚠️ Common Vulnerabilities to Check
+1. **Injection Attacks**: SQL, NoSQL, Command injection
+2. **Broken Authentication**: Weak passwords, session management
+3. **Sensitive Data Exposure**: Unencrypted data, information leakage
+4. **XML External Entities (XXE)**: XML parsing vulnerabilities
+5. **Broken Access Control**: Privilege escalation, missing authorization
+6. **Security Misconfiguration**: Default credentials, unnecessary features
+7. **Cross-Site Scripting (XSS)**: Reflected, stored, DOM-based
+8. **Insecure Deserialization**: Untrusted data deserialization
+9. **Using Components with Known Vulnerabilities**: Outdated dependencies
+10. **Insufficient Logging & Monitoring**: Missing audit trails
+
+## 🚨 Critical Security Patterns
+
+### Secure Password Handling
+```go
+// ✅ Correct
+hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), 12)
+if err != nil {
+    return fmt.Errorf("failed to hash password: %w", err)
+}
+
+// ❌ Wrong
+password := user.Password // storing plain text
+```
+
+### Input Validation
+```go
+// ✅ Correct
+type CreateUserRequest struct {
+    Username string `json:"username" validate:"required,min=3,max=50,alphanum"`
+    Email    string `json:"email" validate:"required,email"`
+    Password string `json:"password" validate:"required,min=8,max=100"`
+}
+
+// ❌ Wrong
+query := fmt.Sprintf("SELECT * FROM users WHERE email = '%s'", email) // SQL injection risk
+```
+
+### Rate Limiting
+```go
+// ✅ Correct - implement rate limiting
+rateLimiter := middleware.RateLimit(middleware.RateLimitConfig{
+    Max:      100,
+    Duration: time.Minute,
+    KeyFunc:  middleware.DefaultKeyFunc,
+})
+
+// ❌ Wrong - no rate limiting on public endpoints
+```
+
+## 📞 Emergency Response
+- [ ] Incident response plan documented
+- [ ] Security contact information available
+- [ ] Backup and recovery procedures tested
+- [ ] Security patch deployment process defined

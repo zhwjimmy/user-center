@@ -222,7 +222,7 @@ func provideUserRepository(db database.Database) repository.UserRepository {
 - Check build tags are correct
 - Verify file locations
 - Clean and regenerate if needed
-description:
-globs:
+description: "Dependency injection patterns and Wire framework best practices for UserCenter"
+globs: ["**/*.go"]
 alwaysApply: false
 ---

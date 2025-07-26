@@ -1,5 +1,164 @@
 ---
-description:
-globs:
+description: "Database patterns and GORM best practices for UserCenter"
+globs: ["internal/model/**/*.go", "internal/repository/**/*.go", "internal/database/**/*.go"]
 alwaysApply: false
 ---
+# Database Development Patterns
+
+## 🗄️ GORM Model Standards
+```go
+type User struct {
+    ID        uint      `gorm:"primaryKey" json:"id"`
+    CreatedAt time.Time `json:"created_at"`
+    UpdatedAt time.Time `json:"updated_at"`
+    DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+    
+    Username string `gorm:"uniqueIndex;size:50;not null" json:"username" validate:"required,min=3,max=50"`
+    Email    string `gorm:"uniqueIndex;size:100;not null" json:"email" validate:"required,email"`
+    Password string `gorm:"size:255;not null" json:"-"`
+}
+```
+
+## 🔗 Repository Pattern
+- Implement interfaces for repositories
+- Use dependency injection for testability
+- Handle database transactions properly
+- Include proper error handling and logging
+
+```go
+type UserRepository interface {
+    Create(ctx context.Context, user *model.User) error
+    GetByID(ctx context.Context, id uint) (*model.User, error)
+    GetByEmail(ctx context.Context, email string) (*model.User, error)
+    Update(ctx context.Context, id uint, updates map[string]interface{}) error
+    Delete(ctx context.Context, id uint) error
+    List(ctx context.Context, filter *dto.UserFilter) ([]*model.User, int64, error)
+}
+```
+
+## 💾 Connection Management
+- Use connection pooling appropriately
+- Set proper timeouts for database operations
+- Handle connection failures gracefully
+- Monitor connection pool metrics
+
+```go
+// Database configuration
+config := &gorm.Config{
+    Logger: logger.Default.LogMode(logger.Info),
+    NamingStrategy: schema.NamingStrategy{
+        SingularTable: true, // Use singular table names
+    },
+}
+
+db, err := gorm.Open(postgres.Open(dsn), config)
+if err != nil {
+    return nil, fmt.Errorf("failed to connect to database: %w", err)
+}
+
+// Configure connection pool
+sqlDB, err := db.DB()
+if err != nil {
+    return nil, fmt.Errorf("failed to get database instance: %w", err)
+}
+
+sqlDB.SetMaxIdleConns(10)
+sqlDB.SetMaxOpenConns(100)
+sqlDB.SetConnMaxLifetime(time.Hour)
+```
+
+## 🔄 Transaction Handling
+```go
+func (r *userRepository) CreateWithProfile(ctx context.Context, user *model.User, profile *model.Profile) error {
+    return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+        if err := tx.Create(user).Error; err != nil {
+            return fmt.Errorf("failed to create user: %w", err)
+        }
+        
+        profile.UserID = user.ID
+        if err := tx.Create(profile).Error; err != nil {
+            return fmt.Errorf("failed to create profile: %w", err)
+        }
+        
+        return nil
+    })
+}
+```
+
+## 🔍 Query Optimization
+- Use indexes for frequently queried columns
+- Implement pagination for large datasets
+- Use prepared statements where appropriate
+- Monitor slow queries
+
+```go
+// Pagination example
+func (r *userRepository) List(ctx context.Context, filter *dto.UserFilter) ([]*model.User, int64, error) {
+    var users []*model.User
+    var total int64
+    
+    query := r.db.WithContext(ctx).Model(&model.User{})
+    
+    // Apply filters
+    if filter.Status != "" {
+        query = query.Where("status = ?", filter.Status)
+    }
+    if filter.Search != "" {
+        query = query.Where("username ILIKE ? OR email ILIKE ?", 
+            "%"+filter.Search+"%", "%"+filter.Search+"%")
+    }
+    
+    // Get total count
+    if err := query.Count(&total).Error; err != nil {
+        return nil, 0, fmt.Errorf("failed to count users: %w", err)
+    }
+    
+    // Apply pagination and sorting
+    offset := (filter.Page - 1) * filter.Limit
+    if err := query.Order(filter.Sort + " " + filter.Order).
+        Offset(offset).Limit(filter.Limit).Find(&users).Error; err != nil {
+        return nil, 0, fmt.Errorf("failed to fetch users: %w", err)
+    }
+    
+    return users, total, nil
+}
+```
+
+## 🔐 Security Best Practices
+- Always use parameterized queries
+- Validate input data before database operations
+- Implement proper access controls
+- Never expose sensitive data in logs
+- Use database-level constraints
+
+## 🧪 Testing Patterns
+```go
+func TestUserRepository_Create(t *testing.T) {
+    db := setupTestDB(t)
+    defer cleanupTestDB(t, db)
+    
+    repo := NewUserRepository(db)
+    
+    user := &model.User{
+        Username: "testuser",
+        Email:    "test@example.com",
+        Password: "hashed_password",
+    }
+    
+    err := repo.Create(context.Background(), user)
+    assert.NoError(t, err)
+    assert.NotZero(t, user.ID)
+}
+```
+
+## ❌ Avoid
+- Raw SQL queries without parameters
+- Ignoring database errors
+- Not using transactions for multi-table operations
+- Exposing database models directly in API responses
+
+## ✅ Best Practices
+- Use GORM hooks for business logic
+- Implement soft deletes where appropriate
+- Use database migrations for schema changes
+- Monitor database performance metrics

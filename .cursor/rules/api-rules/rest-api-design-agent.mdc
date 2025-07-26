@@ -1,5 +1,100 @@
 ---
-description:
-globs:
+description: "REST API design standards and conventions for UserCenter endpoints"
+globs: ["internal/handler/**/*.go", "internal/server/**/*.go"]
 alwaysApply: false
 ---
+# REST API Design Standards
+
+## 🎯 URL Design Principles
+- Use nouns, not verbs in URLs
+- Use plural nouns for collections: `/api/v1/users`
+- Use lowercase with hyphens for readability: `/user-profiles`
+- Version APIs: `/api/v1/` prefix for all endpoints
+- Keep URLs intuitive and predictable
+
+## 📝 HTTP Methods & Status Codes
+```
+GET    /api/v1/users           → 200 (list users)
+GET    /api/v1/users/{id}      → 200 (get user) | 404 (not found)
+POST   /api/v1/users           → 201 (created) | 400 (bad request)
+PUT    /api/v1/users/{id}      → 200 (updated) | 404 (not found)
+DELETE /api/v1/users/{id}      → 204 (deleted) | 404 (not found)
+```
+
+## 🔍 Query Parameters
+- **Filtering**: `?status=active&role=admin`
+- **Sorting**: `?sort=created_at&order=desc`
+- **Pagination**: `?page=1&limit=20`
+- **Search**: `?search=john.doe`
+
+## 📊 Response Format Standards
+```json
+{
+  "success": true,
+  "data": {
+    "id": "123",
+    "name": "John Doe",
+    "email": "john@example.com"
+  },
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 100,
+    "total_pages": 5
+  },
+  "meta": {
+    "request_id": "req_abc123",
+    "timestamp": "2024-01-01T00:00:00Z"
+  }
+}
+```
+
+## ⚠️ Error Response Format
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_FAILED",
+    "message": "Invalid input data",
+    "details": [
+      {
+        "field": "email",
+        "message": "Invalid email format"
+      }
+    ]
+  },
+  "meta": {
+    "request_id": "req_abc123",
+    "timestamp": "2024-01-01T00:00:00Z"
+  }
+}
+```
+
+## 🔐 Authentication & Security
+- Use Bearer tokens: `Authorization: Bearer <jwt_token>`
+- Include rate limiting headers
+- Validate all input parameters
+- Sanitize responses (no sensitive data)
+- Use HTTPS in production
+
+## 📋 Required Headers
+```
+Content-Type: application/json
+Accept: application/json
+X-Request-ID: <uuid>
+Authorization: Bearer <token> (for protected routes)
+```
+
+## ✅ Swagger Documentation Requirements
+- Document all endpoints with @Summary and @Description
+- Include request/response examples
+- Document all parameters and their constraints
+- Specify error responses for each endpoint
+- Use consistent tag groupings
+
+## 🏥 Health Check Endpoints
+```
+GET /health          → Basic health status
+GET /health/detailed → Detailed component health
+GET /metrics         → Prometheus metrics
+```

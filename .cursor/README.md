@@ -7,15 +7,23 @@
 ```
 .cursor/rules/
 ├── core-rules/                 # 核心项目规则
-│   └── project-context-always.mdc      # 项目上下文 (Always)
+│   ├── project-context-always.mdc      # 项目上下文 (Always)
+│   ├── communication-rules.mdc         # 沟通规范 (Always)
+│   └── version-control.mdc             # 版本控制 (Auto Attached)
 ├── go-rules/                   # Go 语言规则  
-│   └── go-coding-standards-auto.mdc     # Go 编码标准 (Auto Attached)
+│   ├── go-coding-standards-auto.mdc     # Go 编码标准 (Auto Attached)
+│   ├── dependency-injection.mdc         # 依赖注入 (Auto Attached)
+│   ├── kafka-best-practices.mdc         # Kafka 最佳实践 (Auto Attached)
+│   └── ci-cd-best-practices.mdc         # CI/CD 最佳实践 (Auto Attached)
 ├── api-rules/                  # API 设计规则
 │   └── rest-api-design-agent.mdc        # REST API 设计 (Agent Requested)
 ├── database-rules/             # 数据库相关规则
 │   └── database-patterns-auto.mdc       # 数据库模式 (Auto Attached)
 ├── testing-rules/              # 测试相关规则
-│   └── testing-standards-auto.mdc       # 测试标准 (Auto Attached)
+│   ├── testing-standards-auto.mdc       # 测试标准 (Auto Attached)
+│   └── go-testing-best-practices.mdc    # Go 测试最佳实践 (Auto Attached)
+├── middleware-rules/           # 中间件相关规则
+│   └── middleware-patterns-auto.mdc     # 中间件模式 (Auto Attached)
 └── security-rules/             # 安全相关规则
     └── security-review-manual.mdc       # 安全审查 (Manual)
 ```

@@ -251,7 +251,7 @@ git add config.local.yaml
 - Use Makefile targets for consistency
 - Ensure all team members understand what to commit
 - Regular `.gitignore` reviews
-description:
-globs:
+description: "Version control best practices and file management for UserCenter"
+globs: [".gitignore", "go.mod", "go.sum"]
 alwaysApply: false
 ---
