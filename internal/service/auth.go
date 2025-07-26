@@ -77,7 +77,7 @@ func (s *AuthService) Register(ctx context.Context, req *dto.RegisterRequest) (*
 	}
 
 	// Publish user registration event
-	if err := s.eventService.PublishUserRegisteredEvent(ctx, createdUser); err != nil {
+	if err := s.eventService.PublishUserRegistered(ctx, createdUser.ID, createdUser.Username, createdUser.Email); err != nil {
 		s.logger.Error("Failed to publish user registered event",
 			zap.String("user_id", createdUser.ID),
 			zap.Error(err),
@@ -136,8 +136,7 @@ func (s *AuthService) Login(ctx context.Context, req *dto.LoginRequest) (*model.
 
 	// Publish user login event
 	ipAddress := s.getClientIP(ctx)
-	userAgent := s.getUserAgent(ctx)
-	if err := s.eventService.PublishUserLoggedInEvent(ctx, user, ipAddress, userAgent); err != nil {
+	if err := s.eventService.PublishUserLoggedIn(ctx, user.ID, user.Username, ipAddress); err != nil {
 		s.logger.Error("Failed to publish user logged in event",
 			zap.String("user_id", user.ID),
 			zap.Error(err),
@@ -191,8 +190,7 @@ func (s *AuthService) ChangePassword(ctx context.Context, userID string, req *dt
 	}
 
 	// Publish user password changed event
-	ipAddress := s.getClientIP(ctx)
-	if err := s.eventService.PublishUserPasswordChangedEvent(ctx, user, ipAddress); err != nil {
+	if err := s.eventService.PublishUserPasswordChanged(ctx, user.ID); err != nil {
 		s.logger.Error("Failed to publish user password changed event",
 			zap.String("user_id", userID),
 			zap.Error(err),
