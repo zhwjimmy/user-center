@@ -86,10 +86,6 @@ coverage.txt
 # Air live reload
 tmp/
 
-# Swagger generated files
-docs/swagger.json
-docs/swagger.yaml
-
 # Migration logs
 *.sql.log
 

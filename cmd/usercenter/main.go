@@ -8,8 +8,29 @@ import (
 	"os/signal"
 	"syscall"
 
+	_ "github.com/zhwjimmy/user-center/docs" // 导入 docs 包以初始化 Swagger
 	"go.uber.org/zap"
 )
+
+// @title UserCenter API
+// @version 1.0
+// @description UserCenter is a user management service that provides user registration, authentication, and profile management capabilities.
+// @termsOfService http://swagger.io/terms/
+
+// @contact.name API Support
+// @contact.url http://www.swagger.io/support
+// @contact.email support@swagger.io
+
+// @license.name Apache 2.0
+// @license.url http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @host localhost:8080
+// @BasePath /api/v1
+
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Type "Bearer" followed by a space and JWT token.
 
 // Version is the application version
 var Version = "dev"

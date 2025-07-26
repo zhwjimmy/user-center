@@ -777,3 +777,53 @@ kubectl get pods -l app=usercenter
 - [讨论区](https://github.com/username/user-center/discussions)
 - [Docker Hub](https://hub.docker.com/r/username/user-center)
 - [GitHub Container Registry](https://github.com/username/user-center/packages) 
+
+## 📄 迭代文档管理
+
+本项目内置了完善的迭代/需求文档版本管理机制。你可以通过 Makefile 命令或专用脚本，方便地创建、列出、查看和清理带时间戳版本号的功能文档。
+
+### 功能亮点
+- 文档自动带时间戳版本号（如 `user-features-v2025-07-26-154029.md`）
+- 每个功能自动维护 `latest` 符号链接
+- 模板化文档创建
+- 自动更新 README
+- 旧版本自动清理（保留最近5个）
+
+### Makefile 常用命令
+```bash
+# 创建新迭代文档
+make docs-create-iteration name=feature_name
+
+# 列出所有迭代文档
+make docs-list-iterations
+
+# 查看最新版本
+make docs-show-latest name=feature_name
+
+# 清理旧版本（保留最近5个）
+make docs-clean-old
+
+# 更新迭代文档 README
+make docs-update-readme
+```
+
+### 脚本用法
+你也可以直接使用脚本：
+```bash
+./scripts/iteration-docs.sh create <feature_name>
+./scripts/iteration-docs.sh list
+./scripts/iteration-docs.sh show-latest <feature_name>
+./scripts/iteration-docs.sh clean-old
+./scripts/iteration-docs.sh update-readme
+```
+
+### 目录结构示例
+```
+docs/iterations/
+├── README.md
+├── user-features-latest.md -> user-features-v2025-07-26-154029.md
+├── user-features-v2025-07-26-154029.md
+└── ...
+```
+
+详细用法和示例请见 `docs/iterations/README.md`。 

@@ -7,6 +7,11 @@ GO_FILES := $(shell find . -name "*.go" -type f -not -path "./vendor/*")
 VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 LDFLAGS := -ldflags "-X main.Version=$(VERSION)"
 
+# Iteration docs
+ITERATION_DOCS_DIR := docs/iterations
+ITERATION_SCRIPT := scripts/iteration-docs.sh
+TIMESTAMP := $(shell date +"%Y-%m-%d-%H%M%S")
+
 # Go commands
 GOCMD := go
 GOBUILD := $(GOCMD) build
@@ -268,6 +273,35 @@ dev-start: setup-env docker-compose-up ## Start development environment
 .PHONY: dev-stop
 dev-stop: docker-compose-down ## Stop development environment
 	@echo "Development environment stopped!"
+
+##@ Documentation
+
+.PHONY: docs-create-iteration
+docs-create-iteration: ## Create a new iteration document version (usage: make docs-create-iteration name=feature_name)
+	@if [ -z "$(name)" ]; then echo "Usage: make docs-create-iteration name=feature_name"; exit 1; fi
+	@chmod +x $(ITERATION_SCRIPT)
+	@$(ITERATION_SCRIPT) create $(name)
+
+.PHONY: docs-list-iterations
+docs-list-iterations: ## List all iteration documents
+	@chmod +x $(ITERATION_SCRIPT)
+	@$(ITERATION_SCRIPT) list
+
+.PHONY: docs-show-latest
+docs-show-latest: ## Show the latest iteration document (usage: make docs-show-latest name=feature_name)
+	@if [ -z "$(name)" ]; then echo "Usage: make docs-show-latest name=feature_name"; exit 1; fi
+	@chmod +x $(ITERATION_SCRIPT)
+	@$(ITERATION_SCRIPT) show-latest $(name)
+
+.PHONY: docs-clean-old
+docs-clean-old: ## Clean old iteration documents (keep last 5 versions)
+	@chmod +x $(ITERATION_SCRIPT)
+	@$(ITERATION_SCRIPT) clean-old
+
+.PHONY: docs-update-readme
+docs-update-readme: ## Update iteration docs README with current documents
+	@chmod +x $(ITERATION_SCRIPT)
+	@$(ITERATION_SCRIPT) update-readme
 
 ##@ Cleanup
 

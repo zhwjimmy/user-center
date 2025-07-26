@@ -508,3 +508,53 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [Project Homepage](https://github.com/zhwjimmy/user-center)
 - [Issues](https://github.com/zhwjimmy/user-center/issues)
 - [Discussions](https://github.com/zhwjimmy/user-center/discussions) 
+
+## 📄 Iteration Documentation Management
+
+This project provides a robust system for managing versioned iteration/feature documents. You can easily create, list, view, and clean up iteration documents using Makefile commands or a dedicated shell script.
+
+### Features
+- Versioned documentation with timestamped filenames (e.g., `user-features-v2025-07-26-154029.md`)
+- Automatic `latest` symlink for each feature
+- Template-based document creation
+- Automatic README update
+- Old version cleanup (keep last 5)
+
+### Makefile Commands
+```bash
+# Create a new iteration document
+make docs-create-iteration name=feature_name
+
+# List all iteration documents
+make docs-list-iterations
+
+# Show the latest version
+make docs-show-latest name=feature_name
+
+# Clean old versions (keep last 5)
+make docs-clean-old
+
+# Update the iteration docs README
+make docs-update-readme
+```
+
+### Script Usage
+You can also use the script directly:
+```bash
+./scripts/iteration-docs.sh create <feature_name>
+./scripts/iteration-docs.sh list
+./scripts/iteration-docs.sh show-latest <feature_name>
+./scripts/iteration-docs.sh clean-old
+./scripts/iteration-docs.sh update-readme
+```
+
+### Directory Structure Example
+```
+docs/iterations/
+├── README.md
+├── user-features-latest.md -> user-features-v2025-07-26-154029.md
+├── user-features-v2025-07-26-154029.md
+└── ...
+```
+
+See `docs/iterations/README.md` for more details and usage examples. 
