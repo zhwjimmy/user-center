@@ -8,7 +8,36 @@
 - Define provider functions for each dependency
 - Create `InitializeApp()` function for application setup
 
-### 2. Wire File Template
+### 2. Infrastructure Manager Pattern
+```go
+// provideInfrastructureManager creates centralized infrastructure manager
+func provideInfrastructureManager(cfg *config.Config, logger *zap.Logger) (*infrastructure.Manager, error) {
+	return infrastructure.NewManager(cfg, logger)
+}
+
+// Extract specific components from manager
+func provideGormDB(manager *infrastructure.Manager) *gorm.DB {
+	return manager.GetPostgreSQL().DB()
+}
+
+func provideCache(manager *infrastructure.Manager) infraCache.Cache {
+	return manager.GetRedis()
+}
+
+func provideKafkaService(manager *infrastructure.Manager) messaging.Service {
+	return manager.GetKafka()
+}
+```
+
+### 3. Event Publisher Integration
+```go
+// provideEventPublisher creates event publisher from messaging service
+func provideEventPublisher(kafkaService messaging.Service, logger *zap.Logger) publisher.EventPublisher {
+	return publisher.NewKafkaEventPublisher(kafkaService.GetProducer(), logger)
+}
+```
+
+### 4. Wire File Template (Updated)
 ```go
 //go:build wireinject
 // +build wireinject
@@ -17,6 +46,9 @@ package main
 
 import (
 	"github.com/google/wire"
+	"github.com/zhwjimmy/user-center/internal/events/publisher"
+	"github.com/zhwjimmy/user-center/internal/infrastructure"
+	"github.com/zhwjimmy/user-center/internal/infrastructure/messaging"
 	// Import your packages
 )
 
@@ -29,15 +61,24 @@ func InitializeApp() (*server.Server, error) {
 		// Logger
 		provideLogger,
 		
-		// Database connections
-		database.NewPostgreSQL,
+		// Infrastructure Manager
+		provideInfrastructureManager,
+		
+		// Extract connections from manager
 		provideGormDB,
+		provideCache,
+		provideKafkaService,
+		
+		// Event Publisher
+		provideEventPublisher,
 		
 		// Repositories
 		repository.NewUserRepository,
 		
 		// Services
 		service.NewUserService,
+		service.NewEventService,
+		service.NewAuthService,
 		
 		// Handlers
 		handler.NewUserHandler,
@@ -49,7 +90,7 @@ func InitializeApp() (*server.Server, error) {
 }
 ```
 
-### 3. Provider Functions
+### 5. Provider Functions
 ```go
 // provideLogger creates a new logger instance
 func provideLogger(cfg *config.Config) (*zap.Logger, error) {
@@ -62,9 +103,9 @@ func provideLogger(cfg *config.Config) (*zap.Logger, error) {
 	return config.Build()
 }
 
-// provideGormDB extracts *gorm.DB from *database.PostgreSQL
-func provideGormDB(pg *database.PostgreSQL) *gorm.DB {
-	return pg.DB
+// provideGormDB extracts *gorm.DB from infrastructure manager
+func provideGormDB(manager *infrastructure.Manager) *gorm.DB {
+	return manager.GetPostgreSQL().DB()
 }
 ```
 
@@ -98,16 +139,54 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
+```
 
-	// Graceful shutdown
-	ctx, cancel := context.WithTimeout(context.Background(), app.GetShutdownTimeout())
-	defer cancel()
-
-	if err := app.Shutdown(ctx); err != nil {
-		log.Error("Server forced to shutdown", zap.Error(err))
+### 2. Infrastructure Lifecycle Management
+```go
+// Server Start method
+func (s *Server) Start() error {
+	// Start infrastructure components
+	if err := s.infra.Start(); err != nil {
+		return fmt.Errorf("failed to start infrastructure: %w", err)
 	}
+	
+	// Start HTTP server
+	return s.router.Run(s.config.Server.Address)
+}
+
+// Server Shutdown method
+func (s *Server) Shutdown() error {
+	// Stop infrastructure components
+	if err := s.infra.Stop(); err != nil {
+		return fmt.Errorf("failed to stop infrastructure: %w", err)
+	}
+	
+	return nil
 }
 ```
+
+## Best Practices
+
+### 1. Infrastructure Manager Pattern
+- Centralize all external dependency management
+- Provide unified lifecycle management (Start/Stop)
+- Extract specific components as needed by business layer
+- Maintain clean separation between infrastructure and business
+
+### 2. Event Publisher Integration
+- Use dependency injection for event publishers
+- Publishers wrap infrastructure messaging services
+- Business services depend on publisher interfaces, not infrastructure
+
+### 3. Error Handling
+- Infrastructure errors should be handled at the manager level
+- Business services should receive clean interfaces
+- Use proper error wrapping for context
+
+### 4. Testing
+- Mock infrastructure manager for testing
+- Test business logic with mock publishers
+- Use dependency injection for easy mocking
 
 ## CI/CD Integration
 
@@ -143,86 +222,7 @@ var UserSet = wire.NewSet(
 )
 ```
 
-## Best Practices
-
-### 1. Provider Organization
-- Group related providers together
-- Use descriptive provider function names
-- Keep providers simple and focused
-- Use provider sets for complex modules
-
-### 2. Error Handling
-- Return errors from providers when appropriate
-- Handle initialization errors in main
-- Use proper error wrapping
-
-### 3. Configuration
-- Pass configuration to providers
-- Use environment-specific configs
-- Validate configuration in providers
-
-### 4. Testing
-- Use Wire for test setup
-- Create test-specific providers
-- Mock dependencies in tests
-
 ## Advanced Patterns
 
 ### 1. Provider Sets
-```go
-var DatabaseSet = wire.NewSet(
-	database.NewPostgreSQL,
-	provideGormDB,
-)
-
-var ServiceSet = wire.NewSet(
-	repository.NewUserRepository,
-	service.NewUserService,
-)
-
-var HandlerSet = wire.NewSet(
-	handler.NewUserHandler,
-	handler.NewHealthHandler,
-)
 ```
-
-### 2. Conditional Providers
-```go
-func provideDatabase(cfg *config.Config) (database.Database, error) {
-	if cfg.Database.Type == "postgres" {
-		return database.NewPostgreSQL(cfg)
-	}
-	return database.NewMongoDB(cfg)
-}
-```
-
-### 3. Interface Providers
-```go
-func provideUserRepository(db database.Database) repository.UserRepository {
-	return repository.NewUserRepository(db)
-}
-```
-
-## Troubleshooting
-
-### 1. Wire Generation Errors
-- Check import paths
-- Verify provider function signatures
-- Ensure all dependencies are available
-- Check for circular dependencies
-
-### 2. Runtime Errors
-- Verify all providers return expected types
-- Check error handling in providers
-- Ensure configuration is valid
-- Test individual providers
-
-### 3. Build Errors
-- Ensure Wire tool is installed
-- Check build tags are correct
-- Verify file locations
-- Clean and regenerate if needed
-description:
-globs:
-alwaysApply: false
----

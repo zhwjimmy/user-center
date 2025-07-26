@@ -1,0 +1,119 @@
+# Architecture Design Rules
+
+## Clean Architecture Principles
+
+### 1. Layer Separation
+- **Infrastructure Layer** (`internal/infrastructure/`): External dependencies only
+  - No business logic allowed
+  - Implements interfaces defined by business layer
+  - Handles technical concerns (DB connections, message queues, etc.)
+- **Business Layer** (`internal/`): Core business logic
+  - No direct infrastructure dependencies
+  - Defines interfaces for infrastructure to implement
+  - Contains all business rules and domain logic
+
+### 2. Dependency Direction
+- Dependencies point inward: Infrastructure → Business
+- Business layer never imports infrastructure packages
+- Infrastructure layer implements business-defined interfaces
+- Use dependency injection (Wire) for wiring components
+
+### 3. Interface Segregation
+- Define specific interfaces for each concern
+- Avoid large, monolithic interfaces
+- Keep interfaces focused and cohesive
+
+## Event-Driven Architecture
+
+### 1. Event Structure
+- Events defined in `internal/events/types/`
+- Each event implements `messaging.Event` interface
+- Events contain business data, not infrastructure details
+
+### 2. Event Publishing
+- Use `internal/events/publisher/` for publishing abstractions
+- Publishers wrap infrastructure messaging services
+- Business services call publishers, not infrastructure directly
+
+### 3. Event Handling
+- Handlers in `internal/events/handlers/` contain business logic
+- One handler per event type
+- Handlers are pure business logic, no infrastructure concerns
+
+### 4. Infrastructure Decoupling
+- Kafka producer uses generic `Event` interface
+- No direct dependency on business event types in infrastructure
+- Infrastructure layer remains technology-agnostic
+
+## Code Organization Rules
+
+### 1. Package Structure
+```
+internal/
+├── infrastructure/     # External dependencies
+│   ├── cache/         # Cache implementations
+│   ├── database/      # Database implementations
+│   └── messaging/     # Message queue implementations
+├── events/            # Event-driven architecture
+│   ├── types/         # Event definitions
+│   ├── publisher/     # Event publishing
+│   └── handlers/      # Event handling
+├── service/           # Business services
+├── repository/        # Data access
+├── handler/           # HTTP handlers
+└── middleware/        # HTTP middleware
+```
+
+### 2. Naming Conventions
+- Infrastructure implementations: `kafkaProducer`, `redisImpl`, `postgreSQL`
+- Business services: `UserService`, `AuthService`, `EventService`
+- Event types: `UserRegisteredEvent`, `UserLoggedInEvent`
+- Handlers: `UserRegisteredHandler`, `UserLoggedInHandler`
+
+### 3. Interface Definitions
+- Infrastructure interfaces in infrastructure packages
+- Business interfaces in business packages
+- Use type assertions to ensure interface compliance
+
+## Best Practices
+
+### 1. Error Handling
+- Infrastructure errors should be wrapped with context
+- Business logic should handle errors gracefully
+- Don't let infrastructure errors leak to business layer
+
+### 2. Configuration
+- Use dependency injection for configuration
+- Infrastructure components should be configurable
+- Business logic should not depend on configuration details
+
+### 3. Testing
+- Mock interfaces, not concrete implementations
+- Test business logic independently of infrastructure
+- Use dependency injection for testability
+
+### 4. Logging
+- Use structured logging with context
+- Log at appropriate levels (Debug, Info, Warn, Error)
+- Include relevant identifiers in log messages
+
+## Migration Guidelines
+
+### 1. When Adding New Features
+- Define business interfaces first
+- Implement infrastructure layer to satisfy interfaces
+- Keep business logic pure and testable
+
+### 2. When Refactoring
+- Maintain layer boundaries
+- Update interfaces before implementations
+- Ensure dependency direction is preserved
+
+### 3. When Debugging
+- Check layer boundaries for violations
+- Verify interface implementations
+- Ensure proper error handling at each layer
+description:
+globs:
+alwaysApply: false
+---

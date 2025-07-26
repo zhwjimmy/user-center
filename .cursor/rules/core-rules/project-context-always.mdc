@@ -2,11 +2,24 @@
 
 ## Architecture Overview
 
-This is a Go-based user management service with a hybrid development architecture:
+This is a Go-based user management service with a clean architecture design:
 
 ### Service Architecture
 - **Application Service**: Runs locally for fast development and debugging
 - **Dependency Services**: Managed via Docker Compose (databases, cache, message queues)
+
+### Clean Architecture Design
+- **Infrastructure Layer** (`internal/infrastructure/`): External dependencies (DB, Cache, MQ)
+  - Database: PostgreSQL and MongoDB implementations
+  - Cache: Redis implementation with generic Cache interface
+  - Messaging: Kafka implementation with generic Event interface
+  - Centralized management via InfrastructureManager
+- **Business Layer** (`internal/`): Core business logic
+  - Services: User, Auth, Event services
+  - Repositories: Data access abstractions
+  - Handlers: HTTP request handlers
+  - Events: Event types, publishers, and handlers
+- **Interface Layer**: Clear separation between infrastructure and business logic
 
 ### Key Technologies
 - **Language**: Go 1.23.1
@@ -16,6 +29,13 @@ This is a Go-based user management service with a hybrid development architectur
 - **Message Queue**: Apache Kafka 7.3.0
 - **Monitoring**: Prometheus, Jaeger (distributed tracing)
 - **Documentation**: Swagger/OpenAPI
+- **Dependency Injection**: Google Wire
+
+### Event-Driven Architecture
+- **Event Types** (`internal/events/types/`): Business event definitions
+- **Event Publishers** (`internal/events/publisher/`): Event publishing abstractions
+- **Event Handlers** (`internal/events/handlers/`): Business logic for event processing
+- **Infrastructure Decoupling**: Generic Event interface prevents infrastructure from depending on business types
 
 ### Development Workflow
 - Dependencies: `docker-compose up -d`
@@ -24,8 +44,12 @@ This is a Go-based user management service with a hybrid development architectur
 - Hot reload: Code changes trigger automatic rebuild
 
 ### Key Directories
-- `cmd/usercenter/`: Application entry point
-- `internal/`: Private application code
+- `cmd/usercenter/`: Application entry point with Wire DI
+- `internal/infrastructure/`: External dependency implementations
+- `internal/events/`: Event-driven architecture components
+- `internal/service/`: Business logic services
+- `internal/handler/`: HTTP request handlers
+- `internal/repository/`: Data access layer
 - `configs/`: Configuration files
 - `docs/`: Documentation
 - `migrations/`: Database migrations
