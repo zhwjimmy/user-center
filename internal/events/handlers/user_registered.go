@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/zhwjimmy/user-center/internal/events/types"
 	"go.uber.org/zap"
@@ -21,7 +22,12 @@ func NewUserRegisteredHandler(logger *zap.Logger) *UserRegisteredHandler {
 }
 
 // Handle 处理用户注册事件
-func (h *UserRegisteredHandler) Handle(ctx context.Context, event *types.UserRegisteredEvent) error {
+func (h *UserRegisteredHandler) Handle(ctx context.Context, payload []byte, headers map[string][]byte) error {
+	var event types.UserRegisteredEvent
+	if err := json.Unmarshal(payload, &event); err != nil {
+		return err
+	}
+
 	h.logger.Info("Processing user registered event",
 		zap.String("user_id", event.UserID),
 		zap.String("username", event.Username),
@@ -31,7 +37,7 @@ func (h *UserRegisteredHandler) Handle(ctx context.Context, event *types.UserReg
 
 	// 业务逻辑处理
 	// 1. 发送欢迎邮件
-	if err := h.sendWelcomeEmail(ctx, event); err != nil {
+	if err := h.sendWelcomeEmail(ctx, &event); err != nil {
 		h.logger.Error("Failed to send welcome email",
 			zap.String("user_id", event.UserID),
 			zap.Error(err),
@@ -40,7 +46,7 @@ func (h *UserRegisteredHandler) Handle(ctx context.Context, event *types.UserReg
 	}
 
 	// 2. 初始化用户配置
-	if err := h.initializeUserSettings(ctx, event); err != nil {
+	if err := h.initializeUserSettings(ctx, &event); err != nil {
 		h.logger.Error("Failed to initialize user settings",
 			zap.String("user_id", event.UserID),
 			zap.Error(err),
@@ -48,7 +54,7 @@ func (h *UserRegisteredHandler) Handle(ctx context.Context, event *types.UserReg
 	}
 
 	// 3. 记录用户注册统计
-	if err := h.recordUserRegistrationStats(ctx, event); err != nil {
+	if err := h.recordUserRegistrationStats(ctx, &event); err != nil {
 		h.logger.Error("Failed to record user registration stats",
 			zap.String("user_id", event.UserID),
 			zap.Error(err),

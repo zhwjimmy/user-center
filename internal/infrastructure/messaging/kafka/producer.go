@@ -1,4 +1,4 @@
-package messaging
+package kafka
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/IBM/sarama"
+	"github.com/zhwjimmy/user-center/internal/infrastructure/messaging/interfaces"
 	"go.uber.org/zap"
 )
 
@@ -21,8 +22,8 @@ type kafkaProducer struct {
 }
 
 // NewKafkaProducer 创建Kafka生产者
-func NewKafkaProducer(cfg *KafkaClientConfig, logger *zap.Logger) (Producer, error) {
-	producerConfig := cfg.NewProducerConfig()
+func NewKafkaProducer(cfg *KafkaClientConfig, logger *zap.Logger) (interfaces.Producer, error) {
+	producerConfig := cfg.newProducerConfig()
 
 	producer, err := sarama.NewAsyncProducer(cfg.Brokers, producerConfig)
 	if err != nil {
@@ -115,7 +116,7 @@ func (p *kafkaProducer) createMessage(eventData interface{}) (*sarama.ProducerMe
 
 	// 获取主题名称
 	var topic string
-	if event, ok := eventData.(Event); ok {
+	if event, ok := eventData.(interfaces.Event); ok {
 		topic = event.GetTopic()
 	} else {
 		// 如果不是 Event 接口，尝试从配置中获取默认主题
@@ -140,7 +141,7 @@ func (p *kafkaProducer) createMessage(eventData interface{}) (*sarama.ProducerMe
 	}
 
 	// 如果事件实现了 Event 接口，添加事件类型头
-	if event, ok := eventData.(Event); ok {
+	if event, ok := eventData.(interfaces.Event); ok {
 		message.Headers = append(message.Headers, sarama.RecordHeader{
 			Key:   []byte("event_type"),
 			Value: []byte(event.GetEventType()),

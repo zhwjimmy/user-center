@@ -93,7 +93,11 @@ func (m *Manager) initMessaging() error {
 	// 创建 Kafka 配置
 	kafkaConfig := messaging.NewKafkaClientConfig(m.config)
 
-	kafka, err := messaging.NewKafkaService(kafkaConfig, m.logger)
+	// 创建默认的 Handler 工厂
+	// 在实际项目中，这个工厂应该由业务层提供
+	handlerFactory := messaging.NewDefaultHandlerFactory()
+
+	kafka, err := messaging.NewKafkaService(kafkaConfig, handlerFactory, m.logger)
 	if err != nil {
 		return fmt.Errorf("failed to initialize Kafka: %w", err)
 	}

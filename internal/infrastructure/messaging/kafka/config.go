@@ -1,10 +1,11 @@
-package messaging
+package kafka
 
 import (
 	"time"
 
 	"github.com/IBM/sarama"
 	"github.com/zhwjimmy/user-center/internal/config"
+	"github.com/zhwjimmy/user-center/internal/infrastructure/messaging/interfaces"
 )
 
 // KafkaClientConfig Kafka客户端配置
@@ -37,8 +38,25 @@ func NewKafkaClientConfig(cfg *config.Config) *KafkaClientConfig {
 	}
 }
 
+// 实现 interfaces.HandlerConfig 接口
+func (c *KafkaClientConfig) GetGroupID() string {
+	return c.GroupID
+}
+
+func (c *KafkaClientConfig) GetTopicName(key string) string {
+	if topic, exists := c.Topics[key]; exists {
+		return topic
+	}
+	return key
+}
+
+// 实现 interfaces.HandlerConfig 接口
+// 这个接口只包含 Handler 创建所需的最小配置信息
+// 确保 KafkaClientConfig 可以作为 HandlerConfig 使用
+var _ interfaces.HandlerConfig = (*KafkaClientConfig)(nil)
+
 // NewProducerConfig 创建生产者配置
-func (c *KafkaClientConfig) NewProducerConfig() *sarama.Config {
+func (c *KafkaClientConfig) newProducerConfig() *sarama.Config {
 	config := sarama.NewConfig()
 
 	// 生产者配置
@@ -65,7 +83,7 @@ func (c *KafkaClientConfig) NewProducerConfig() *sarama.Config {
 }
 
 // NewConsumerConfig 创建消费者配置
-func (c *KafkaClientConfig) NewConsumerConfig() *sarama.Config {
+func (c *KafkaClientConfig) newConsumerConfig() *sarama.Config {
 	config := sarama.NewConfig()
 
 	// 消费者配置
@@ -83,12 +101,4 @@ func (c *KafkaClientConfig) NewConsumerConfig() *sarama.Config {
 	config.Version = sarama.V2_6_0_0
 
 	return config
-}
-
-// GetTopicName 获取主题名称
-func (c *KafkaClientConfig) GetTopicName(key string) string {
-	if topic, exists := c.Topics[key]; exists {
-		return topic
-	}
-	return key
 }

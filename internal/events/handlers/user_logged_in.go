@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/zhwjimmy/user-center/internal/events/types"
 	"go.uber.org/zap"
@@ -21,7 +22,12 @@ func NewUserLoggedInHandler(logger *zap.Logger) *UserLoggedInHandler {
 }
 
 // Handle 处理用户登录事件
-func (h *UserLoggedInHandler) Handle(ctx context.Context, event *types.UserLoggedInEvent) error {
+func (h *UserLoggedInHandler) Handle(ctx context.Context, payload []byte, headers map[string][]byte) error {
+	var event types.UserLoggedInEvent
+	if err := json.Unmarshal(payload, &event); err != nil {
+		return err
+	}
+
 	h.logger.Info("Processing user logged in event",
 		zap.String("user_id", event.UserID),
 		zap.String("username", event.Username),
@@ -31,7 +37,7 @@ func (h *UserLoggedInHandler) Handle(ctx context.Context, event *types.UserLogge
 
 	// 业务逻辑处理
 	// 1. 记录登录日志
-	if err := h.recordLoginLog(ctx, event); err != nil {
+	if err := h.recordLoginLog(ctx, &event); err != nil {
 		h.logger.Error("Failed to record login log",
 			zap.String("user_id", event.UserID),
 			zap.Error(err),
@@ -39,7 +45,7 @@ func (h *UserLoggedInHandler) Handle(ctx context.Context, event *types.UserLogge
 	}
 
 	// 2. 更新最后登录时间
-	if err := h.updateLastLoginTime(ctx, event); err != nil {
+	if err := h.updateLastLoginTime(ctx, &event); err != nil {
 		h.logger.Error("Failed to update last login time",
 			zap.String("user_id", event.UserID),
 			zap.Error(err),
@@ -47,7 +53,7 @@ func (h *UserLoggedInHandler) Handle(ctx context.Context, event *types.UserLogge
 	}
 
 	// 3. 检查异常登录
-	if err := h.checkAnomalousLogin(ctx, event); err != nil {
+	if err := h.checkAnomalousLogin(ctx, &event); err != nil {
 		h.logger.Error("Failed to check anomalous login",
 			zap.String("user_id", event.UserID),
 			zap.Error(err),
