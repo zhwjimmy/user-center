@@ -6,8 +6,8 @@ package main
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/wire"
-	"github.com/zhwjimmy/user-center/internal/cache"
 	"github.com/zhwjimmy/user-center/internal/config"
+	"github.com/zhwjimmy/user-center/internal/events/publisher"
 	"github.com/zhwjimmy/user-center/internal/handler"
 	"github.com/zhwjimmy/user-center/internal/infrastructure"
 	infraCache "github.com/zhwjimmy/user-center/internal/infrastructure/cache"
@@ -100,6 +100,11 @@ func provideKafkaService(manager *infrastructure.Manager) messaging.Service {
 	return manager.GetKafka()
 }
 
+// provideEventPublisher 创建事件发布器
+func provideEventPublisher(kafkaService messaging.Service, logger *zap.Logger) publisher.EventPublisher {
+	return publisher.NewKafkaEventPublisher(kafkaService.GetProducer(), logger)
+}
+
 // provideServer creates a new server instance
 func provideServer(
 	cfg *config.Config,
@@ -151,11 +156,8 @@ func InitializeApp() (*server.Server, error) {
 		provideCache,
 		provideKafkaService,
 
-		// Cache services
-		cache.NewUserCache,
-		cache.NewSessionCache,
-		cache.NewRateLimitCache,
-		cache.NewTokenCache,
+		// Event Publisher
+		provideEventPublisher,
 
 		// Repositories
 		repository.NewUserRepository,
