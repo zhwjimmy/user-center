@@ -5,7 +5,7 @@ go 1.23.1
 require (
 	github.com/IBM/sarama v1.45.2
 	github.com/gin-contrib/cors v1.7.6
-	github.com/gin-contrib/requestid v0.0.6
+	github.com/gin-contrib/requestid v1.0.5
 	github.com/gin-contrib/zap v1.1.5
 	github.com/gin-gonic/gin v1.10.1
 	github.com/golang-jwt/jwt/v5 v5.2.2
