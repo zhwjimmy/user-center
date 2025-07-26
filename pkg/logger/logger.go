@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/your-org/user-center/internal/config"
+	"github.com/zhwjimmy/user-center/internal/config"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )

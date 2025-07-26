@@ -79,9 +79,12 @@ redis_data/
 
 # Log files
 *.log
-logs/
 log/
 *.log.*
+
+# Keep logs directory but ignore log files
+logs/*.log
+logs/*.log.*
 
 # Cache and temporary files
 .cache/
