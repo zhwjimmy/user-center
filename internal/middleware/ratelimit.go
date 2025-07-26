@@ -7,21 +7,21 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/zhwjimmy/user-center/internal/cache"
 	"github.com/zhwjimmy/user-center/internal/config"
 	"github.com/zhwjimmy/user-center/internal/dto"
+	"github.com/zhwjimmy/user-center/internal/infrastructure/cache"
 	"go.uber.org/zap"
 )
 
 // RateLimitMiddleware handles rate limiting
 type RateLimitMiddleware struct {
-	redis  *cache.Redis
+	redis  cache.Cache
 	config config.RateLimitConfig
 	logger *zap.Logger
 }
 
 // NewRateLimitMiddleware creates a new rate limit middleware
-func NewRateLimitMiddleware(redis *cache.Redis, cfg *config.Config, logger *zap.Logger) *RateLimitMiddleware {
+func NewRateLimitMiddleware(redis cache.Cache, cfg *config.Config, logger *zap.Logger) *RateLimitMiddleware {
 	return &RateLimitMiddleware{
 		redis:  redis,
 		config: cfg.RateLimit,
@@ -120,7 +120,7 @@ func (m *RateLimitMiddleware) RateLimitByUser() gin.HandlerFunc {
 	}
 }
 
-// RateLimitCustom applies custom rate limiting with specified parameters
+// RateLimitCustom applies rate limiting with custom parameters
 func (m *RateLimitMiddleware) RateLimitCustom(rate int, window time.Duration, keyFunc func(*gin.Context) string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if !m.config.Enabled {
@@ -189,23 +189,20 @@ func (m *RateLimitMiddleware) checkCustomRateLimit(ctx context.Context, key stri
 // LoginRateLimit applies rate limiting specifically for login attempts
 func (m *RateLimitMiddleware) LoginRateLimit() gin.HandlerFunc {
 	return m.RateLimitCustom(5, 15*time.Minute, func(c *gin.Context) string {
-		// Rate limit by IP for login attempts
-		return fmt.Sprintf("login_rate_limit:%s", c.ClientIP())
+		return fmt.Sprintf("rate_limit:login:%s", c.ClientIP())
 	})
 }
 
 // RegistrationRateLimit applies rate limiting specifically for registration attempts
 func (m *RateLimitMiddleware) RegistrationRateLimit() gin.HandlerFunc {
-	return m.RateLimitCustom(3, 60*time.Minute, func(c *gin.Context) string {
-		// Rate limit by IP for registration attempts
-		return fmt.Sprintf("register_rate_limit:%s", c.ClientIP())
+	return m.RateLimitCustom(3, 1*time.Hour, func(c *gin.Context) string {
+		return fmt.Sprintf("rate_limit:register:%s", c.ClientIP())
 	})
 }
 
-// PasswordResetRateLimit applies rate limiting for password reset attempts
+// PasswordResetRateLimit applies rate limiting specifically for password reset attempts
 func (m *RateLimitMiddleware) PasswordResetRateLimit() gin.HandlerFunc {
-	return m.RateLimitCustom(3, 60*time.Minute, func(c *gin.Context) string {
-		// Rate limit by IP for password reset attempts
-		return fmt.Sprintf("password_reset_rate_limit:%s", c.ClientIP())
+	return m.RateLimitCustom(3, 1*time.Hour, func(c *gin.Context) string {
+		return fmt.Sprintf("rate_limit:password_reset:%s", c.ClientIP())
 	})
 }
