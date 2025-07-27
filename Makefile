@@ -74,6 +74,12 @@ build: ## Build the application
 	@mkdir -p $(BUILD_DIR)
 	$(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/usercenter
 
+.PHONY: build-migrate
+build-migrate: ## Build the migration tool
+	@echo "Building migration tool..."
+	@mkdir -p bin
+	$(GOBUILD) $(LDFLAGS) -o bin/migrate ./cmd/migrate
+
 ##@ Running
 
 .PHONY: run
@@ -193,25 +199,30 @@ security: ## Run security checks
 ##@ Database
 
 .PHONY: migrate-create
-migrate-create: ## Create a new migration file (usage: make migrate-create name=migration_name)
+migrate-create: build-migrate ## Create a new migration file (usage: make migrate-create name=migration_name)
 	@if [ -z "$(name)" ]; then echo "Usage: make migrate-create name=migration_name"; exit 1; fi
 	@echo "Creating migration: $(name)"
-	goose -dir migrations create $(name) sql
+	./bin/migrate -action create -name $(name)
 
 .PHONY: migrate-up
-migrate-up: ## Apply all pending migrations
+migrate-up: build-migrate ## Apply all pending migrations
 	@echo "Applying migrations..."
-	goose -dir migrations postgres "$(shell grep -A 5 'postgres:' configs/config.yaml | grep -E '(host|port|user|password|dbname)' | awk '{print $$2}' | tr -d '"' | paste -sd ' ' | awk '{print "host=" $$1 " port=" $$2 " user=" $$3 " password=" $$4 " dbname=" $$5 " sslmode=disable"}')" up
+	./bin/migrate -action up
 
 .PHONY: migrate-down
-migrate-down: ## Rollback the last migration
+migrate-down: build-migrate ## Rollback the last migration
 	@echo "Rolling back migration..."
-	goose -dir migrations postgres "$(shell grep -A 5 'postgres:' configs/config.yaml | grep -E '(host|port|user|password|dbname)' | awk '{print $$2}' | tr -d '"' | paste -sd ' ' | awk '{print "host=" $$1 " port=" $$2 " user=" $$3 " password=" $$4 " dbname=" $$5 " sslmode=disable"}')" down
+	./bin/migrate -action down
 
 .PHONY: migrate-status
-migrate-status: ## Show migration status
+migrate-status: build-migrate ## Show migration status
 	@echo "Migration status..."
-	goose -dir migrations postgres "$(shell grep -A 5 'postgres:' configs/config.yaml | grep -E '(host|port|user|password|dbname)' | awk '{print $$2}' | tr -d '"' | paste -sd ' ' | awk '{print "host=" $$1 " port=" $$2 " user=" $$3 " password=" $$4 " dbname=" $$5 " sslmode=disable"}')" status
+	./bin/migrate -action status
+
+.PHONY: install-goose
+install-goose: ## Install goose migration tool
+	@echo "Installing goose migration tool..."
+	go install github.com/pressly/goose/v3/cmd/goose@latest
 
 ##@ Docker
 
