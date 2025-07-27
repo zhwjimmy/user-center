@@ -118,7 +118,13 @@ func (m *Manager) initMessaging() error {
 
 // initTasks 初始化任务处理
 func (m *Manager) initTasks() error {
-	taskService, err := tasks.NewAsynqService(m.config, m.logger)
+	// 创建 Asynq 配置
+	asynqConfig := tasks.NewAsynqClientConfig(m.config)
+
+	// 创建默认的 Handler 工厂
+	handlerFactory := tasks.NewDefaultHandlerFactory()
+
+	taskService, err := tasks.NewAsynqService(asynqConfig, handlerFactory, m.logger)
 	if err != nil {
 		return fmt.Errorf("failed to initialize task service: %w", err)
 	}
