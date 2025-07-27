@@ -1,14 +1,14 @@
-package queue
+package tasks
 
 import (
 	"github.com/zhwjimmy/user-center/internal/config"
-	"github.com/zhwjimmy/user-center/internal/infrastructure/queue/asynq"
-	"github.com/zhwjimmy/user-center/internal/infrastructure/queue/factory"
-	"github.com/zhwjimmy/user-center/internal/infrastructure/queue/interfaces"
+	"github.com/zhwjimmy/user-center/internal/infrastructure/tasks/asynq"
+	"github.com/zhwjimmy/user-center/internal/infrastructure/tasks/factory"
+	"github.com/zhwjimmy/user-center/internal/infrastructure/tasks/interfaces"
 	"go.uber.org/zap"
 )
 
-// Service 导出队列服务接口类型
+// Service 导出任务服务接口类型
 type Service = interfaces.Service
 
 // NewAsynqClientConfig 创建 Asynq 客户端配置

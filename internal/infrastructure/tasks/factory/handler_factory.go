@@ -3,7 +3,7 @@ package factory
 import (
 	"fmt"
 
-	"github.com/zhwjimmy/user-center/internal/infrastructure/queue/interfaces"
+	"github.com/zhwjimmy/user-center/internal/infrastructure/tasks/interfaces"
 	"go.uber.org/zap"
 )
 

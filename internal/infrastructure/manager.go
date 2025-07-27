@@ -11,7 +11,7 @@ import (
 	"github.com/zhwjimmy/user-center/internal/infrastructure/cache"
 	"github.com/zhwjimmy/user-center/internal/infrastructure/database"
 	"github.com/zhwjimmy/user-center/internal/infrastructure/messaging"
-	"github.com/zhwjimmy/user-center/internal/infrastructure/queue"
+	"github.com/zhwjimmy/user-center/internal/infrastructure/tasks"
 	"go.uber.org/zap"
 )
 
@@ -30,8 +30,8 @@ type Manager struct {
 	// 消息队列
 	messaging messaging.Service
 
-	// 任务队列
-	queue queue.Service
+	// 任务处理
+	tasks tasks.Service
 
 	// 生命周期管理
 	mu     sync.RWMutex
@@ -60,9 +60,9 @@ func NewManager(cfg *config.Config, logger *zap.Logger) (*Manager, error) {
 		return nil, fmt.Errorf("failed to initialize messaging: %w", err)
 	}
 
-	// 初始化任务队列
-	if err := manager.initQueue(); err != nil {
-		return nil, fmt.Errorf("failed to initialize queue: %w", err)
+	// 初始化任务处理
+	if err := manager.initTasks(); err != nil {
+		return nil, fmt.Errorf("failed to initialize tasks: %w", err)
 	}
 
 	logger.Info("Infrastructure manager initialized successfully")
@@ -116,13 +116,13 @@ func (m *Manager) initMessaging() error {
 	return nil
 }
 
-// initQueue 初始化任务队列
-func (m *Manager) initQueue() error {
-	queueService, err := queue.NewAsynqService(m.config, m.logger)
+// initTasks 初始化任务处理
+func (m *Manager) initTasks() error {
+	taskService, err := tasks.NewAsynqService(m.config, m.logger)
 	if err != nil {
-		return fmt.Errorf("failed to initialize queue service: %w", err)
+		return fmt.Errorf("failed to initialize task service: %w", err)
 	}
-	m.queue = queueService
+	m.tasks = taskService
 
 	return nil
 }
@@ -147,9 +147,9 @@ func (m *Manager) GetMessaging() messaging.Service {
 	return m.messaging
 }
 
-// GetQueue 获取任务队列服务
-func (m *Manager) GetQueue() queue.Service {
-	return m.queue
+// GetTasks 获取任务处理服务
+func (m *Manager) GetTasks() tasks.Service {
+	return m.tasks
 }
 
 // Start 启动所有服务
@@ -166,9 +166,9 @@ func (m *Manager) Start(ctx context.Context) error {
 		return fmt.Errorf("failed to start messaging service: %w", err)
 	}
 
-	// 启动任务队列服务
-	if err := m.queue.Start(ctx); err != nil {
-		return fmt.Errorf("failed to start queue service: %w", err)
+	// 启动任务处理服务
+	if err := m.tasks.Start(ctx); err != nil {
+		return fmt.Errorf("failed to start task service: %w", err)
 	}
 
 	m.logger.Info("All infrastructure services started successfully")
@@ -191,9 +191,9 @@ func (m *Manager) Stop(ctx context.Context) error {
 		errors = append(errors, fmt.Errorf("failed to stop messaging service: %w", err))
 	}
 
-	// 停止任务队列服务
-	if err := m.queue.Stop(); err != nil {
-		errors = append(errors, fmt.Errorf("failed to stop queue service: %w", err))
+	// 停止任务处理服务
+	if err := m.tasks.Stop(); err != nil {
+		errors = append(errors, fmt.Errorf("failed to stop task service: %w", err))
 	}
 
 	// 关闭 Redis 连接

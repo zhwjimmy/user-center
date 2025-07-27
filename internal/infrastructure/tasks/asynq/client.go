@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/hibiken/asynq"
-	"github.com/zhwjimmy/user-center/internal/infrastructure/queue/interfaces"
+	"github.com/zhwjimmy/user-center/internal/infrastructure/tasks/interfaces"
 	"go.uber.org/zap"
 )
 
@@ -20,18 +20,18 @@ type asynqClient struct {
 // NewAsynqClient 创建 Asynq 客户端
 func NewAsynqClient(cfg *AsynqConfig, logger *zap.Logger) (interfaces.Client, error) {
 	client := asynq.NewClient(cfg.GetRedisClientOpt())
-	
+
 	ac := &asynqClient{
 		client: client,
 		config: cfg,
 		logger: logger,
 	}
-	
+
 	logger.Info("Asynq client created successfully",
 		zap.String("redis_addr", cfg.Redis.Addr),
 		zap.Int("redis_db", cfg.Redis.DB),
 	)
-	
+
 	return ac, nil
 }
 
@@ -45,13 +45,13 @@ func (ac *asynqClient) EnqueueTask(ctx context.Context, task *asynq.Task, opts .
 		)
 		return nil, fmt.Errorf("failed to enqueue task: %w", err)
 	}
-	
+
 	ac.logger.Debug("Task enqueued successfully",
 		zap.String("task_id", info.ID),
 		zap.String("task_type", task.Type()),
 		zap.String("queue", info.Queue),
 	)
-	
+
 	return info, nil
 }
 
@@ -72,4 +72,4 @@ func (ac *asynqClient) Close() error {
 	ac.logger.Info("Closing Asynq client")
 	ac.client.Close()
 	return nil
-} 
+}
